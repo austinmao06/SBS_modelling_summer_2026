@@ -1,0 +1,80 @@
+#with prediction correction (first-order) WORKING
+import numpy as np
+import matplotlib.pyplot as plt
+
+#parameters####################################################################################################################################################################
+
+a0 = 1
+b0 =  1
+sigma = 1
+g = 1
+dtau = 0.02
+dzeta = 0.025
+############################################################################################################
+tau = np.arange(0,20, dtau)
+zeta = np.arange(-20,8, dzeta)
+Ntau = len(tau)
+Nzeta = len(zeta)
+a = np.empty((Ntau,Nzeta))
+b = np.empty((Ntau,Nzeta))
+##Deploy ICs########################################################################################################################################################################
+a[0,:] = a0
+a[:,0] = a0
+b[0,:] = b0*np.exp(-np.abs(zeta/sigma)**2) #SEED PROFILE
+
+for j in range(Nzeta - 1):
+    aa = a[0,j]
+    bb = b[0,j]
+    db = b[0,j+1] - bb
+    ka1 = -dzeta * g * aa * ( bb**2 )
+    ka2 = -dzeta * g * (aa + ka1/2) * (bb + db/2)**2
+    ka3 = -dzeta * g * (aa + ka2/2) * (bb + db/2)**2
+    ka4 = -dzeta * g * (aa + ka3) * (bb + db)**2
+    a[0,j+1] = aa + (ka1 + 2*ka2 + 2*ka3 + ka4)/6
+########################################################################integrate.####################################################################################
+
+for i in range(Ntau - 1): #FIRST ITERATION: EULER APPROX + RK4 PREDICTION
+    db1 = dtau * g * b[i,:] * a[i,:]**2
+    b[i+1,:] = b[i,:] + db1
+    for j in range(Nzeta - 1):
+        bb = b[i+1,j]
+        db = b[i+1,j+1] - bb
+        aa = a[i+1,j]
+
+        da1 = -dzeta * g * aa * bb**2
+        da2 = -dzeta * g * (aa + da1/2) * (bb+db/2)**2
+        da3 = -dzeta * g * (aa + da2/2) * (bb + db/2)**2
+        da4 = -dzeta * g * (aa + da3) * (bb + db)**2
+
+        a[i+1,j+1] = aa + (da1 + 2*da2 + 2*da3 + da4)/6
+    #SECOND ITERATION: CORRECTION W/FULL RK4 IMPLEMENTATION
+    da = a[i+1,:] - a[i,:] 
+    db1 = dtau * g * b[i,:] * a[i,:]**2
+    db2 = dtau * g * (b[i,:] + db1/2) * (a[i,:] + da/2)**2
+    db3 = dtau * g * (b[i,:] + db2/2) * (a[i,:] + da/2)**2
+    db4 = dtau * g * (b[i,:] + db3) * (a[i,:] + da)**2
+    
+    b[i+1,:] = b[i,:] + (db1 + 2*db2 + 2*db3 + db4)/6
+    
+    for j in range(Nzeta - 1):
+        bb = b[i+1,j]
+        db = b[i+1,j+1] - bb
+        aa = a[i+1,j]
+
+        da1 = -dzeta * g * aa * bb**2
+        da2 = -dzeta * g * (aa + da1/2) * (bb+db/2)**2
+        da3 = -dzeta * g * (aa + da2/2) * (bb + db/2)**2
+        da4 = -dzeta * g * (aa + da3) * (bb + db)**2
+
+        a[i+1,j+1] = aa + (da1 + 2*da2 + 2*da3 + da4)/6
+    
+
+print(a.shape)
+print(b.shape)
+print(np.any(np.isinf(b)))
+print(np.any(np.isnan(b)))
+# find where blowup first occurs
+blown = np.where(np.isinf(b))
+if len(blown[0]) > 0:
+    print(f"First blowup at tau index {blown[0].min()}, tau = {tau[blown[0].min()]:.2f}")
+
