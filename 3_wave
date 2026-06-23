@@ -66,4 +66,3 @@ if len(blown[0]) > 0:
     print(f"First blowup at tau index {blown[0].min()}, tau = {tau[blown[0].min()]:.2f}")
 else:
     print("Simulation completed without blowups!")
-
