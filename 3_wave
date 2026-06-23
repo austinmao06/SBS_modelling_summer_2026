@@ -1,15 +1,16 @@
-#VER 2. GOOD OVERALL BUT MINOR UNDERESTIMATE. WORKING
+#Polina Hard copy.
+
 import numpy as np
 import matplotlib.pyplot as plt
 
 ###PARAMS######################## 
 a0 = 1
 b0 = 1
-g = 0.48
-biggamma = 11
+g = 1
+G = 1000
 sigma = 1
-dtau = 0.02
-dzeta = 0.025
+dtau = 0.01
+dzeta = 0.01
 tau = np.arange(0, 20, dtau)
 zeta = np.arange(-25, 10, dzeta)
 Ntau = len(tau)
@@ -19,132 +20,46 @@ a = np.empty((Ntau, Nzeta))
 b = np.empty((Ntau, Nzeta))
 f = np.empty((Ntau, Nzeta))
 
-b[0,:] = b0 * np.exp(-np.abs(zeta/sigma)**2) #initial seed profile
+b[0,:] = b0 * np.exp(-np.abs(zeta/sigma)**1) #initial seed profile
 a[:,0] = a0 #constant pump source
 f[:,0] = 0 #far-left limit of no acoustic
 
-for j in range(Nzeta - 1): #coupled RK4 for a, f IC
-    bb = b[0,j] 
-    db = b[0,j+1] - b[0,j]
-    aa = a[0,j]
-    ff = f[0,j]
-    if 2*biggamma > 1:
-        ka1 = -dzeta * bb * ff
-        a[0, j+1] = aa + ka1
-        if a[0, j+1] < 0:
-            a[0, j+1] = 0
+for j in range(Nzeta - 1):
+    da = - dzeta * g * b[0,j] * f[0,j]
+    a[0,j+1] = a[0,j] + da
+    f[0,j+1] = (g * a[0,j+1] * b[0,j+1] + f[0,j]/(2*G*dzeta) )/(1 + 1/(2*G*dzeta))
 
-        f[0, j+1] = (g * a[0, j+1] * (bb + db) + (ff / (2 * biggamma * dzeta))) / (1 + (1 / (2 * biggamma * dzeta)))
-    else:
-        da1 = -dzeta * bb * ff
-        df1 = 2 * biggamma * (g * aa * bb - ff)
-        da2 = -dzeta * (bb + db/2) * (ff + df1/2)
-        df2 = 2 * biggamma * (g * (aa + da1/2) * (bb + db/2) - (ff + df1/2))
-        da3 = -dzeta * (bb + db/2) * (ff + df2/2)
-        df3 = 2 * biggamma * (g * (aa + da2/2) * (bb + db/2) - (ff + df2/2))
-        da4 = -dzeta * (bb + db) * (ff + df3)
-        df4 = 2 * biggamma * (g * (aa + da3) * (bb + db) - (ff + df3))
-    
-        a[0,j+1] = aa + (da1 + 2*da2 + 2*da3 + da4)/6
-        if a[0, j+1] < 0:
-            a[0, j+1] = 0
-        f[0,j+1] = ff + (df1 + 2*df2 + 2*df3 + df4)/6
-        
-
+b[1,:] = b[0,:] + g * a[0,:] * f[0,:]
 
 for i in range(Ntau - 1):
-    b[i+1,:] = b[i,:] + dtau * a[i,:] * f[i,:]
     for j in range(Nzeta - 1):
-        bb = b[i+1, j]
-        db = b[i+1, j+1] - b[i+1, j]
-        ff = f[i+1, j]
-        aa = a[i+1, j]
+        bb = b[i+1,j]
+        db = b[i+1,j+1] - bb
+
+        aa = a[i+1,j]
+        ff = f[i+1,j]
         
-        if 2 * biggamma > 1:
-            ka1 = -dzeta * bb * ff
-            a[i+1, j+1] = aa + ka1
-            if a[i+1, j+1] < 0:
-                a[i+1, j+1] = 0
-
-            f[i+1, j+1] = (g * a[i+1, j+1] * (bb + db) + (ff / (2 * biggamma * dzeta))) / (1 + (1 / (2 * biggamma * dzeta)))
-            
+        if 2*G > 1:
+            a[i+1, j+1] = aa - dzeta * bb * ff
+            f[i+1,j+1] = (g * a[i+1,j+1] * (bb+db) + ff/(2*G*dzeta) )/(1 + 1/(2*G*dzeta))
         else:
-            ka1 = -dzeta * bb * ff
-            # FIX 2: Added dzeta to all kf steps
-            kf1 = dzeta * 2 * biggamma * (g * aa * bb - ff)
-            
-            ka2 = -dzeta * ((bb + db/2) * (ff + kf1/2))
-            kf2 = dzeta * 2 * biggamma * (g * (aa + ka1/2) * (bb + db/2) - (ff + kf1/2))
+            da1 = -dzeta * bb * ff
+            df1 = dzeta * (g * aa * bb - ff)
 
-            ka3 = -dzeta * ((bb + db/2) * (ff + kf2/2))
-            kf3 = dzeta * 2 * biggamma * (g * (aa + ka2/2) * (bb + db/2) - (ff + kf2/2))
+            da2 = -dzeta * (bb + db/2) * (ff + df1/2)
+            df2 = dzeta * (g * (aa + da1/2) * (bb + db/2) - (ff + df1/2))
 
-            ka4 = -dzeta * ((bb + db) * (ff + kf3))
-            kf4 = dzeta * 2 * biggamma * (g * (aa + ka3) * (bb + db) - (ff + kf3))
+            da3 = -dzeta * (bb + db/2) * (ff + df2/2)
+            df3 = dzeta * (g * (aa + da2/2) * (bb + db/2) - (ff + df2/2))
 
-            a[i+1, j+1] = a[i+1, j] + (ka1 + 2*ka2 + 2*ka3 + ka4) / 6
-            if a[i+1, j+1] < 0:
-                a[i+1, j+1] = 0
-            f[i+1, j+1] = f[i+1, j] + (kf1 + 2*kf2 + 2*kf3 + kf4) / 6
+            da4 = -dzeta * (bb + db) * (ff + df3)
+            df4 = dzeta * (g * (aa + da3) * (bb + db) - (ff + df3))
 
-    aa = a[i+1,:]
-    da = a[i+1,:] - a[i,:]
-    ff = f[i+1,:]
-    df = f[i+1,:] - f[i,:]
+            a[i+1,j+1] = aa + (da1 + 2*da2 + 2*da3 + da4)/6
+            f[i+1,j+1] = ff + (df1 + 2*df2 + 2*df3 + df4)/6
 
-    db1 = dtau * aa * ff
-    db2 = dtau * (aa + da/2) * (ff + df/2)
-    db3 = dtau * (aa + da) * (ff + df)
-    b[i+1,:] = b[i,:] + (db1 + 4 * db2 + db3)/6
-    
-    for j in range(Nzeta - 1):
-        bb = b[i+1, j]
-        db = b[i+1, j+1] - b[i+1, j]
-        ff = f[i+1, j]
-        aa = a[i+1, j]
-        if 2 * biggamma > 1:
-            ka1 = -dzeta * bb * ff
-            a[i+1, j+1] = aa + ka1
-            if a[i+1, j+1] < 0:
-                a[i+1, j+1] = 0
-
-            f[i+1, j+1] = (g * a[i+1, j+1] * (bb + db) + (ff / (2 * biggamma * dzeta))) / (1 + (1 / (2 * biggamma * dzeta)))
-            
-        else:
-            ka1 = -dzeta * bb * ff
-            # FIX 2: Added dzeta to all kf steps
-            kf1 = dzeta * 2 * biggamma * (g * aa * bb - ff)
-            
-            ka2 = -dzeta * ((bb + db/2) * (ff + kf1/2))
-            kf2 = dzeta * 2 * biggamma * (g * (aa + ka1/2) * (bb + db/2) - (ff + kf1/2))
-
-            ka3 = -dzeta * ((bb + db/2) * (ff + kf2/2))
-            kf3 = dzeta * 2 * biggamma * (g * (aa + ka2/2) * (bb + db/2) - (ff + kf2/2))
-
-            ka4 = -dzeta * ((bb + db) * (ff + kf3))
-            kf4 = dzeta * 2 * biggamma * (g * (aa + ka3) * (bb + db) - (ff + kf3))
-
-            a[i+1, j+1] = a[i+1, j] + (ka1 + 2*ka2 + 2*ka3 + ka4) / 6
-            if a[i+1, j+1] < 0:
-                a[i+1, j+1] = 0
-            f[i+1, j+1] = f[i+1, j] + (kf1 + 2*kf2 + 2*kf3 + kf4) / 6
-            
-    aa = a[i+1,:]
-    da = a[i+1,:] - a[i,:]
-    ff = f[i+1,:]
-    df = f[i+1,:] - f[i,:]
-
-    db1 = dtau * aa * ff
-    db2 = dtau * (aa + da/2) * (ff + df/2)
-    db3 = dtau * (aa + da) * (ff + df)
-    b[i+1,:] = b[i,:] + (db1 + 4 * db2 + db3)/6
-
-
-print(a.shape)
-print(b.shape)
-print(f.shape)
-print(np.any(np.isinf(b)))
-print(np.any(np.isnan(b)))
+    if i+2 < Ntau:
+        b[i+2,:] = b[i+1,:] + dtau * a[i+1,:] * f[i+1,:]
 
 # find where blowup first occurs
 blown = np.where(np.isinf(b))
@@ -152,3 +67,4 @@ if len(blown[0]) > 0:
     print(f"First blowup at tau index {blown[0].min()}, tau = {tau[blown[0].min()]:.2f}")
 else:
     print("Simulation completed without blowups!")
+
