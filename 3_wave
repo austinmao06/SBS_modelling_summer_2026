@@ -1,13 +1,12 @@
 #Polina Hard copy.
-
 import numpy as np
 import matplotlib.pyplot as plt
 
 ###PARAMS######################## 
-a0 = 1
-b0 = 1
-g = 1
-G = 1000
+a0 = 1.5
+b0 = 1/50
+g = 2
+G = 0.05
 sigma = 1
 dtau = 0.01
 dzeta = 0.01
@@ -20,16 +19,16 @@ a = np.empty((Ntau, Nzeta))
 b = np.empty((Ntau, Nzeta))
 f = np.empty((Ntau, Nzeta))
 
-b[0,:] = b0 * np.exp(-np.abs(zeta/sigma)**1) #initial seed profile
+b[0,:] = b0 * np.exp(-np.abs(zeta/sigma)**2) #initial seed profile
 a[:,0] = a0 #constant pump source
 f[:,0] = 0 #far-left limit of no acoustic
 
 for j in range(Nzeta - 1):
-    da = - dzeta * g * b[0,j] * f[0,j]
+    da = - dzeta * b[0,j] * f[0,j]
     a[0,j+1] = a[0,j] + da
     f[0,j+1] = (g * a[0,j+1] * b[0,j+1] + f[0,j]/(2*G*dzeta) )/(1 + 1/(2*G*dzeta))
 
-b[1,:] = b[0,:] + g * a[0,:] * f[0,:]
+b[1,:] = b[0,:] + dtau * g * a[0,:] * f[0,:]
 
 for i in range(Ntau - 1):
     for j in range(Nzeta - 1):
