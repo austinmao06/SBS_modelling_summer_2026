@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 a0 = 1
 f0 = 1
 g = 1
-biggamma = 10000
+G = 10000
 sigma = 1
 dtau = 0.02
 dzeta = 0.025
@@ -25,104 +25,41 @@ a[0,:] = a0                                   # initial pump (placeholder, undep
 f[:,0] = 0                                    # far-left limit of no acoustic
 f[0,:] = f0 * np.exp(-np.abs(zeta/sigma)**2) + f0 * np.exp(-np.abs((zeta-5)/sigma)**2)  # initial acoustic profile
 
+
 ###Integration############################################################
+
+b[1,:] = b[0,:] + dtau * g * a[0,:] * f[0,:]
+
 for i in range(Ntau - 1):
-
-    # ── PREDICTOR ────────────────────────────────────────────────────────
-    b[i+1,:] = b[i,:] + dtau * a[i,:] * f[i,:]   # Euler step for b
     for j in range(Nzeta - 1):
-        bb = b[i+1, j]
-        db = b[i+1, j+1] - b[i+1, j]
-        ff = f[i+1, j]
-        aa = a[i+1, j]
+        bb = b[i+1,j]
+        db = b[i+1,j+1] - bb
 
-        if 2 * biggamma > 1:
-            # overdamped: a via single Euler step, f via implicit (stable) solve
-            ka1 = -dzeta * bb * ff
-            a[i+1, j+1] = aa + ka1
-            if a[i+1, j+1] < 0:
-                a[i+1, j+1] = 0
-            f[i+1, j+1] = (g * a[i+1, j+1] * (bb + db) + (ff / (2 * biggamma * dzeta))) / \
-                          (1 + (1 / (2 * biggamma * dzeta)))
+        aa = a[i+1,j]
+        ff = f[i+1,j]
+        
+        if 2*G > 1:
+            a[i+1, j+1] = aa - dzeta * bb * ff
+            f[i+1,j+1] = (g * a[i+1,j+1] * (bb+db) + ff/(2*G*dzeta) )/(1 + 1/(2*G*dzeta))
         else:
-            # underdamped: full coupled RK4 for a and f together
-            ka1 = -dzeta * bb * ff
-            kf1 = dzeta * 2 * biggamma * (g * aa * bb - ff)
+            da1 = -dzeta * bb * ff
+            df1 = dzeta * (g * aa * bb - ff)
 
-            ka2 = -dzeta * ((bb + db/2) * (ff + kf1/2))
-            kf2 = dzeta * 2 * biggamma * (g * (aa + ka1/2) * (bb + db/2) - (ff + kf1/2))
+            da2 = -dzeta * (bb + db/2) * (ff + df1/2)
+            df2 = dzeta * (g * (aa + da1/2) * (bb + db/2) - (ff + df1/2))
 
-            ka3 = -dzeta * ((bb + db/2) * (ff + kf2/2))
-            kf3 = dzeta * 2 * biggamma * (g * (aa + ka2/2) * (bb + db/2) - (ff + kf2/2))
+            da3 = -dzeta * (bb + db/2) * (ff + df2/2)
+            df3 = dzeta * (g * (aa + da2/2) * (bb + db/2) - (ff + df2/2))
 
-            ka4 = -dzeta * ((bb + db) * (ff + kf3))
-            kf4 = dzeta * 2 * biggamma * (g * (aa + ka3) * (bb + db) - (ff + kf3))
+            da4 = -dzeta * (bb + db) * (ff + df3)
+            df4 = dzeta * (g * (aa + da3) * (bb + db) - (ff + df3))
 
-            a[i+1, j+1] = a[i+1, j] + (ka1 + 2*ka2 + 2*ka3 + ka4) / 6
-            if a[i+1, j+1] < 0:
-                a[i+1, j+1] = 0
-            f[i+1, j+1] = f[i+1, j] + (kf1 + 2*kf2 + 2*kf3 + kf4) / 6
+            a[i+1,j+1] = aa + (da1 + 2*da2 + 2*da3 + da4)/6
+            f[i+1,j+1] = ff + (df1 + 2*df2 + 2*df3 + df4)/6
 
-    # ── CORRECTOR for b (Simpson's rule, NO linear extrapolation of f) ────
-    # f is recomputed directly at each stage (valid in overdamped limit
-    # since f relaxes ~instantly to gab — extrapolating f via df=f[i+1]-f[i]
-    # badly overshoots during the fast initial relaxation transient).
-    aa_arr = a[i+1,:]
-    da_arr = a[i+1,:] - a[i,:]
-    bb_arr = b[i+1,:]              # predictor's b
-    a_mid  = aa_arr - da_arr/2     # midpoint estimate of a
-    f_mid  = g * a_mid  * bb_arr   # recomputed, not extrapolated
-    f_end  = g * aa_arr * bb_arr
+    if i+2 < Ntau:
+        b[i+2,:] = b[i+1,:] + dtau * a[i+1,:] * f[i+1,:]
 
-    db1 = dtau * a[i,:] * f[i,:]
-    db2 = dtau * a_mid  * f_mid
-    db3 = dtau * aa_arr * f_end
-    b[i+1,:] = b[i,:] + (db1 + 4*db2 + db3)/6
-
-    # ── SECOND PASS: recompute a, f with corrected b ───────────────────────
-    for j in range(Nzeta - 1):
-        bb = b[i+1, j]
-        db = b[i+1, j+1] - b[i+1, j]
-        ff = f[i+1, j]
-        aa = a[i+1, j]
-
-        if 2 * biggamma > 1:
-            ka1 = -dzeta * bb * ff
-            a[i+1, j+1] = aa + ka1
-            if a[i+1, j+1] < 0:
-                a[i+1, j+1] = 0
-            f[i+1, j+1] = (g * a[i+1, j+1] * (bb + db) + (ff / (2 * biggamma * dzeta))) / \
-                          (1 + (1 / (2 * biggamma * dzeta)))
-        else:
-            ka1 = -dzeta * bb * ff
-            kf1 = dzeta * 2 * biggamma * (g * aa * bb - ff)
-
-            ka2 = -dzeta * ((bb + db/2) * (ff + kf1/2))
-            kf2 = dzeta * 2 * biggamma * (g * (aa + ka1/2) * (bb + db/2) - (ff + kf1/2))
-
-            ka3 = -dzeta * ((bb + db/2) * (ff + kf2/2))
-            kf3 = dzeta * 2 * biggamma * (g * (aa + ka2/2) * (bb + db/2) - (ff + kf2/2))
-
-            ka4 = -dzeta * ((bb + db) * (ff + kf3))
-            kf4 = dzeta * 2 * biggamma * (g * (aa + ka3) * (bb + db) - (ff + kf3))
-
-            a[i+1, j+1] = a[i+1, j] + (ka1 + 2*ka2 + 2*ka3 + ka4) / 6
-            if a[i+1, j+1] < 0:
-                a[i+1, j+1] = 0
-            f[i+1, j+1] = f[i+1, j] + (kf1 + 2*kf2 + 2*kf3 + kf4) / 6
-
-    # ── FINAL CORRECTOR for b using the re-updated a, f ───────────────────
-    aa_arr = a[i+1,:]
-    da_arr = a[i+1,:] - a[i,:]
-    bb_arr = b[i+1,:]
-    a_mid  = aa_arr - da_arr/2
-    f_mid  = g * a_mid  * bb_arr
-    f_end  = g * aa_arr * bb_arr
-
-    db1 = dtau * a[i,:] * f[i,:]
-    db2 = dtau * a_mid  * f_mid
-    db3 = dtau * aa_arr * f_end
-    b[i+1,:] = b[i,:] + (db1 + 4*db2 + db3)/6
 
 print(a.shape)
 print(b.shape)
