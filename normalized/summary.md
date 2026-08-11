@@ -128,3 +128,12 @@ $$\frac{\partial a}{\partial \zeta} = -bf$$
 $$\frac{\partial b}{\partial \tau} = af^*$$
 
 $$f + \frac{1}{2\Gamma}\frac{\partial f}{\partial \zeta} = gab^*$$
+
+
+##Additional Notes
+
+- Energy Conservation is lost when the $\frac{\partial}{\partial\tau}$ term is dropped (especially for a)
+- In the code:
+    - G stands in for $\Gamma$
+    - k stands in for $k_{Norm}$
+    - w stands in for $\omega_{Norm}$
