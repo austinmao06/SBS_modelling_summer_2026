@@ -36,8 +36,7 @@ def strong_damp(zeta_range = zeta_range, dzeta = dzeta, tau_range = tau_range, d
     Nzeta = len(zeta)
     a = np.empty((Ntau,Nzeta))
     b = np.empty((Ntau,Nzeta))
-    ##Deploy ICs################################################################################################
-    ############################################################################################################
+    #Initial/Boundary Conditions ------------------------------------------------------------------
     a[0,:] = a0 #Initial pump (unused currently)
     a[:,0] = a0 #Undepleted Left Boundary pump
     b[0,:] = b0*np.exp(-np.abs(zeta/sigma)**2) #SEED PROFILE
@@ -53,7 +52,6 @@ def strong_damp(zeta_range = zeta_range, dzeta = dzeta, tau_range = tau_range, d
         a[0,j+1] = aa + (ka1 + 2*ka2 + 2*ka3 + ka4)/6
       
     b[1,:] = b[0,:] + dtau * g * b[0,:] * (a[0,:]**2)
-
   #Loop
     for i in range(Ntau - 1):
         for j in range(Nzeta - 1):
@@ -155,3 +153,10 @@ plt.xlabel("ζ")
 plt.ylabel(r"$b^2$")
 
 #Plotting (Lab Frame)------------------------------------------------------------------------
+plt.plot(z_true[time_1,:], b[time_1,:]**2, color="red", label=f"t = {t1/w * 1e9}ns")
+plt.plot(z_true[time_2,:], b[time_2,:]**2, color="green", label=f"t = {t2/w * 1e9}ns")
+plt.plot(z_true[time_3,:], b[time_3,:]**2, color="blue", label=f"t = {t3/w * 1e9}ns")
+plt.xlabel("z (m)")
+plt.ylabel(r"$b^2$")
+plt.legend()
+plt.title("Lab Frame")
