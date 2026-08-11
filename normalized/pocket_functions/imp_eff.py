@@ -2,6 +2,7 @@
 rough estimate of efficiency that is reliable at higher times (takes Esupplied - Eout as Egained)
 Necessary because the equations with the dropped terms contain no internal energy conservation
 When seed >> pump, this is a good estimate
+Returns efficiency at each time
 """
 def get_eff(a = a, tau=tau):
     a_in  = a[:, 0]**2            # pump entering the domain
