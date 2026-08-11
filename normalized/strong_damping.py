@@ -37,7 +37,6 @@ def strong_damp(zeta_range = zeta_range, dzeta = dzeta, tau_range = tau_range, d
     a = np.empty((Ntau,Nzeta))
     b = np.empty((Ntau,Nzeta))
     #Initial/Boundary Conditions ------------------------------------------------------------------
-    a[0,:] = a0 #Initial pump (unused currently)
     a[:,0] = a0 #Undepleted Left Boundary pump
     b[0,:] = b0*np.exp(-np.abs(zeta/sigma)**2) #SEED PROFILE
     #Iteration 0. Adapts pump at tau=0 to current state.
