@@ -1,6 +1,7 @@
 """
 allow for complex values
 a = aR + iaI, etc
+I forgot about dtype complex here....
 """
 #SETUP---------------------------------------------------------------------------------------------------
 import numpy as np
