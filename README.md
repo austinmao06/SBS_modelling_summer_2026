@@ -34,4 +34,5 @@ $$\frac{\partial \rho}{\partial t} + \left( \frac{\Gamma_B}{2} - \frac{i}{2\Omeg
 - $\Omega_B$ Brillouin Shift Frequency of Medium
 - $\gamma$ - Adiabatic Index
 - $\gamma_e$ - Electrostriction Coefficient
+- $I_0 = c\epsilon_0 E_0^2$
 - $^*$ Denotes Complex Conjugate
