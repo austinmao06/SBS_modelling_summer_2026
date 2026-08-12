@@ -13,3 +13,9 @@ def get_eff(a = a, tau=tau):
     eta = np.divide(absorbed, supplied, out=np.full_like(tau, np.nan, dtype=float), where=(supplied > 0))
     eta[0] = np.nan
     return eta
+    
+#Example Usage
+eff = get_eff()
+t = convert_to_tau_time(80e-9)
+tau_idx = np.argmin(np.abs(tau-t))
+print(eff[tau_idx])
