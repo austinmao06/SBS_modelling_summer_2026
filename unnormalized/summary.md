@@ -70,10 +70,12 @@ $$\frac{n}{c}\frac{\partial b}{\partial \tau} + \frac{i}{2k_b}\nabla_T^2 b = k_{
 
 $$\frac{2}{\Gamma_B}\left(\frac{\partial f}{\partial \tau} + \frac{c}{n}\frac{\partial f}{\partial \zeta}\right) + (1-i\delta)f = gab^*$$
 
-## Final boxed results
+## Final Results
 
 $$2\frac{\partial a}{\partial \zeta} + \frac{n}{c}\frac{\partial a}{\partial \tau} - \frac{i}{2k_a}\nabla_T^2 a = -k_{norm}bf$$
 
 $$\frac{n}{c}\frac{\partial b}{\partial \tau} + \frac{i}{2k_b}\nabla_T^2 b = k_{norm}af^*$$
 
 $$\frac{2}{\Gamma_B}\left(\frac{\partial f}{\partial \tau} + \frac{c}{n}\frac{\partial f}{\partial \zeta}\right) + (1-i\delta)f = gab^*$$
+
+Similar to the normalized case, we assume $\frac {\partial}{\partial \zeta} >> \frac{n}{c}\frac{\partial}{\partial \tau}$. This is known as the rapid depletion approximation; basically that the pump rapidly depletes, so that over the course of the simulation, the states of the pump and acoustic do not change significantly over time.
