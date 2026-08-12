@@ -32,13 +32,9 @@ $$k_B = \Omega/v \quad (v = c_{sound})$$
 
 Let $E_a = E_0 a$, $E_b = E_0 b$, and $\rho = i\rho_0\tilde\rho_0 f$
 
-**a and b equations after substitution:**
-
 $$\frac{da}{dz} + \frac{n}{c}\frac{da}{dt} - \frac{i}{2k_a}\nabla_T^2 a = -k_{norm}bf$$
 
 $$-\frac{\partial b}{\partial z} + \frac{n}{c}\frac{\partial b}{\partial t} + \frac{i}{2k_b}\nabla_T^2 b = k_{norm}af^*$$
-
-**f equation after substitution (build-up):**
 
 $$\frac{\partial \rho}{\partial t} + \left(\frac{\Gamma_B}{2} - \frac{i}{2\Omega}(\Omega^2 - \Omega_B^2)\right)\rho = \frac{i\gamma_e\epsilon_0 k_B^2}{4\Omega}E_aE_b^*$$
 
@@ -54,19 +50,17 @@ $$\zeta = z + \frac{ct}{n}, \qquad \tau = t$$
 
 $$\frac{\partial}{\partial z} = \frac{\partial}{\partial \zeta}, \qquad \frac{\partial}{\partial t} = \frac{\partial}{\partial \tau} + \frac{c}{n}\frac{\partial}{\partial \zeta}$$
 
-## Substituting the coordinate transform into a and b
+## Then
 
 $$\frac{\partial a}{\partial \zeta} + \frac{n}{c}\left(\frac{\partial a}{\partial \tau} + \frac{c}{n}\frac{\partial a}{\partial \zeta}\right) - \frac{i}{2k_a}\nabla_T^2 a = -k_{norm}bf$$
 
 $$-\frac{\partial b}{\partial \zeta} + \frac{n}{c}\left(\frac{\partial b}{\partial \tau} + \frac{c}{n}\frac{\partial b}{\partial \zeta}\right) + \frac{i}{2k_b}\nabla_T^2 b = k_{norm}af^*$$
 
-which simplify to:
-
 $$2\frac{\partial a}{\partial \zeta} + \frac{n}{c}\frac{\partial a}{\partial \tau} - \frac{i}{2k_a}\nabla_T^2 a = -k_{norm}bf$$
 
 $$\frac{n}{c}\frac{\partial b}{\partial \tau} + \frac{i}{2k_b}\nabla_T^2 b = k_{norm}af^*$$
 
-## Substituting the coordinate transform into f
+## For f:
 
 $$\frac{2}{\Gamma_B}\left(\frac{\partial f}{\partial \tau} + \frac{c}{n}\frac{\partial f}{\partial \zeta}\right) + (1-i\delta)f = gab^*$$
 
