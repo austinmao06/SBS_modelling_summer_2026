@@ -1,5 +1,7 @@
 """
 Viable solver with pump ONLY focusing
+pump has: radial gaussian, phase term
+seed has: longitudinal gaussian
 """
 
 #Setup of constants------------------------------------------------------------
