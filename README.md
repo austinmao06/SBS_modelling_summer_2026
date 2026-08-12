@@ -36,3 +36,9 @@ $$\frac{\partial \rho}{\partial t} + \left( \frac{\Gamma_B}{2} - \frac{i}{2\Omeg
 - $\gamma_e$ - Electrostriction Coefficient
 - $I_0 = c\epsilon_0 E_0^2$
 - $^*$ Denotes Complex Conjugate
+
+**Additional Warnings and Considerations**
+
+- The seed and pump counterpropagate, so flux onto the grid by the pump is double counted - pump effectively travels at 2*speed of light
+- 1D runs take ~1min
+- 2D runs take up to 45min
