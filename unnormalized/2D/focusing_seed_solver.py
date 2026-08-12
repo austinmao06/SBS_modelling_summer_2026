@@ -1,6 +1,8 @@
 """
 Viable solver for focusing seed ONLY. 
 This is the main solver used.
+pump has: radial supergaussian
+seed has: radial gaussian, longitudinal gaussian, phase term
 """
 
 #Setup of constants------------------------------------------------------------
