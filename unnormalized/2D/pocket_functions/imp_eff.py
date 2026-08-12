@@ -9,3 +9,7 @@ def get_eff(a_in_col = a_in_col, a_out_col = a_out_col, rad=rad, tau=tau):
     eta = np.divide(absorbed, supplied, out=np.full_like(tau, np.nan, dtype=float), where=(supplied > 0))
     eta[0] = np.nan
     return eta
+#Example usage
+
+eff = get_eff()
+plt.plot(tau, eff)
