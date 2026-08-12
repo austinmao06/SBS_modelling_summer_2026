@@ -1,4 +1,4 @@
-#Run different detuning factors
+#Run different detuning factors-----------------------------------------------------------------------------
 
 detuning_factors = [0, d/5, 2*d/5, 3*d/5,4*d/5, d]
 nruns = len(detuning_factors)
@@ -8,7 +8,7 @@ for i, dval in enumerate(detuning_factors):
     a_runs.append(a_i); b_runs.append(b_i); f_runs.append(f_i)
     globals()[f"a{i}"], globals()[f"b{i}"], globals()[f"f{i}"] = a_i, b_i, f_i
 
-#compare SBS amplification at different times (with physical units)
+#compare SBS amplification at different times (with physical units)--------------------------------------------
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -99,7 +99,7 @@ axes[0, 0].set_xlim(-1, 2)
 fig.tight_layout()
 plt.show()
 
-#Alternative: Direct overlay----------------------------------------------------------------
+#Alternative: Direct overlay---------------------------------------------------------------------------
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
