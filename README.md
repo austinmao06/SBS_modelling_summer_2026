@@ -4,7 +4,7 @@
 This repository is a collection of the code I developed for my summer 2026 IFE project at Cornell University. You will find the different integrators used and some functions for efficiency, pulse width, peak intensity, etc.
 
 
-<h2>The Unprocessed Equations (Damzens):</h2>
+<h2>The Unprocessed Equations (Damzen):</h2>
 
 $$\frac{\partial E_a}{\partial z} + \frac{n}{c} \frac{\partial E_a}{\partial t} - \frac{i}{2k_a} \nabla_T^2 E_a = \frac{i\omega_a \gamma_e}{4cn\rho_0} E_b \rho$$
 
