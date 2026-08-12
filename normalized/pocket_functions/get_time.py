@@ -7,7 +7,7 @@ def get_time(dist_true, z_true = z_true, intensity = b**2, t_true = t_true):
     takes in dist_true...
     returns true time at which the seed's front edge has propagated dist_true
     """
-    threshold = intensity[0, :].max()/2
+    threshold = intensity[0, :].max()
     Ntau = intensity.shape[0]
 
     def leading_z(ti):
