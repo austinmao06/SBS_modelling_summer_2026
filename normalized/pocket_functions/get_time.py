@@ -30,3 +30,8 @@ def get_time(dist_true, z_true = z_true, intensity = b**2, t_true = t_true):
             frac = (dist_true - disp[ti-1]) / (disp[ti] - disp[ti-1])
             return t_true[ti-1] + frac * (t_true[ti] - t_true[ti-1])
     return np.nan
+
+#Example Usage
+t = get_time(38) #38m is short of 126.7ns since the pulse front is growing
+norm_t = convert_to_tau_time(t)
+nearest_tau_idx = np.argmin(np.abs(tau - norm_t))
