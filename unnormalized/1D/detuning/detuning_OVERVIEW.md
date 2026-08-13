@@ -1,7 +1,7 @@
 <h1> What is Detuning? </h1>
 
 Detuning is the offset of the true optical beat frequency ($\omega_a - \omega_b$) from the natural Brillouin shift frequency ($\Omega_B$). 
-Nonzero detuning equates to an off-resonance drive of the acoustic wave, resulting in a weaker response and hence lessened extent of SBS amplification.
+Nonzero detuning equates to off-resonance optical driving of the acoustic wave, resulting in a lesser response and hence weaker SBS coupling.
 
 To investigate the effects of detuning, there are a number of ways we can determine the parameters.
 
