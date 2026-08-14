@@ -5,7 +5,9 @@ Strang Splitting replaces the blocks of Forward Euler, backward Euler, and RK4. 
 The blocks are replaced by the following Strang-Split blocks:
 
 --half-step Crank-Nicolson for diffraction
+
 --full-step Euler/RK4 for field coupling
+
 --half-step Crank-Nicolson for diffraction
 
 # Crank–Nicolson Formulation (Axisymmetric Diffraction)
