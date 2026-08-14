@@ -117,3 +117,17 @@ $${}_bK_3 = -\frac{ic d\tau (2r + dr)}{16 r k_L n dr^2}$$
 $$\begin{pmatrix} \ddots & \ddots & & \cr -{}_bK_1 & 1+{}_bK_2 & -{}_bK_3 & \cr & -{}_bK_1 & 1+{}_bK_2 & -{}_bK_3 \cr & & \ddots & \ddots \end{pmatrix} \begin{pmatrix} \vdots \cr b_{r_n}^{mid} \cr b_{r_{n+1}}^{mid} \cr \vdots \end{pmatrix} = \begin{pmatrix} \vdots \cr {}_bK_1 b_{r_{n-1}}^{\tau} + (1-{}_bK_2) b_{r_n}^{\tau} + {}_bK_3 b_{r_{n+1}}^{\tau} \cr {}_bK_1 b_{r_n}^{\tau} + (1-{}_bK_2) b_{r_{n+1}}^{\tau} + {}_bK_3 b_{r_{n+2}}^{\tau} \cr \vdots \end{pmatrix}$$
 
 The tridiagonal system is solved directly with NumPy.
+
+# Radial Boundary Conditions
+
+One detail skimmed over above is the resolution of boundary conditions, as the equations break down either at r = 0 or if there does not exist both $r_{n-1}$ and $r_{n+1}$. 
+
+<h2>Outer Boundary Condition</h2>
+
+The outer boundary condition is simply resolved with the PEC condition: Perfect Electrical Conductor. PECs have no electric field. 
+
+In matrix form, this shows up as: 
+
+<h2>Inner Boundary </h2>
+
+The inner boundary condition is resolved using 
