@@ -126,7 +126,7 @@ One detail skimmed over above is the resolution of boundary conditions, as the e
 
 The outer boundary condition is simply resolved with the PEC condition: Perfect Electrical Conductor. PECs have no electric field. 
 
-In matrix form, this shows up as: 
+$$\begin{pmatrix}  &  \ddots &  & \cr & \ddots & \ddots \cr & & 0 & 1 \end{pmatrix} \begin{pmatrix} \vdots \cr \vdots \cr a_{r_{Max}}^{mid} \end{pmatrix} = \begin{pmatrix} \vdots \cr \vdots \cr 0 \end{pmatrix}$$
 
 <h2>Inner Boundary </h2>
 
