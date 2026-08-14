@@ -65,7 +65,7 @@ $${}_aK_3 = \frac{i d\zeta (2r + dr)}{32 r k_L dr^2}$$
 
 **Matrix form.** Unknown is the mid vector; the right side is built from the known $\zeta$ level. Each coefficient depends on $r$, so it differs row to row. Rows shown are interior nodes ($r_0$ and $r_{Max}$ get separate boundary treatment).
 
-$$\begin{pmatrix} \ddots & \ddots & & \\ -{}_aK_1 & 1+{}_aK_2 & -{}_aK_3 & \\ & -{}_aK_1 & 1+{}_aK_2 & -{}_aK_3 \\ & & \ddots & \ddots \end{pmatrix} \begin{pmatrix} \vdots \\ a_{r_n}^{mid} \\ a_{r_{n+1}}^{mid} \\ \vdots \end{pmatrix} = \begin{pmatrix} \vdots \\ {}_aK_1 a_{r_{n-1}}^{\zeta} + (1-{}_aK_2) a_{r_n}^{\zeta} + {}_aK_3 a_{r_{n+1}}^{\zeta} \\ {}_aK_1 a_{r_n}^{\zeta} + (1-{}_aK_2) a_{r_{n+1}}^{\zeta} + {}_aK_3 a_{r_{n+2}}^{\zeta} \\ \vdots \end{pmatrix}$$
+$$\begin{pmatrix} \ddots & \ddots & & \cr -{}_aK_1 & 1+{}_aK_2 & -{}_aK_3 & \cr & -{}_aK_1 & 1+{}_aK_2 & -{}_aK_3 \cr & & \ddots & \ddots \end{pmatrix} \begin{pmatrix} \vdots \cr a_{r_n}^{mid} \cr a_{r_{n+1}}^{mid} \cr \vdots \end{pmatrix} = \begin{pmatrix} \vdots \cr {}_aK_1 a_{r_{n-1}}^{\zeta} + (1-{}_aK_2) a_{r_n}^{\zeta} + {}_aK_3 a_{r_{n+1}}^{\zeta} \cr {}_aK_1 a_{r_n}^{\zeta} + (1-{}_aK_2) a_{r_{n+1}}^{\zeta} + {}_aK_3 a_{r_{n+2}}^{\zeta} \cr \vdots \end{pmatrix}$$
 
 The tridiagonal system can be solved directly with NumPy.
 
@@ -114,6 +114,6 @@ $${}_bK_3 = -\frac{ic d\tau (2r + dr)}{16 r k_L n dr^2}$$
 
 **Matrix form.** Unknown is the mid vector; the right side is built from the known $\tau$ level. Each coefficient depends on $r$, so it differs row to row. Rows shown are interior nodes ($r_0$ and $r_{Max}$ get separate boundary treatment).
 
-$$\begin{pmatrix} \ddots & \ddots & & \\ -{}_bK_1 & 1+{}_bK_2 & -{}_bK_3 & \\ & -{}_bK_1 & 1+{}_bK_2 & -{}_bK_3 \\ & & \ddots & \ddots \end{pmatrix} \begin{pmatrix} \vdots \\ b_{r_n}^{mid} \\ b_{r_{n+1}}^{mid} \\ \vdots \end{pmatrix} = \begin{pmatrix} \vdots \\ {}_bK_1 b_{r_{n-1}}^{\tau} + (1-{}_bK_2) b_{r_n}^{\tau} + {}_bK_3 b_{r_{n+1}}^{\tau} \\ {}_bK_1 b_{r_n}^{\tau} + (1-{}_bK_2) b_{r_{n+1}}^{\tau} + {}_bK_3 b_{r_{n+2}}^{\tau} \\ \vdots \end{pmatrix}$$
+$$\begin{pmatrix} \ddots & \ddots & & \cr -{}_bK_1 & 1+{}_bK_2 & -{}_bK_3 & \cr & -{}_bK_1 & 1+{}_bK_2 & -{}_bK_3 \cr & & \ddots & \ddots \end{pmatrix} \begin{pmatrix} \vdots \cr b_{r_n}^{mid} \cr b_{r_{n+1}}^{mid} \cr \vdots \end{pmatrix} = \begin{pmatrix} \vdots \cr {}_bK_1 b_{r_{n-1}}^{\tau} + (1-{}_bK_2) b_{r_n}^{\tau} + {}_bK_3 b_{r_{n+1}}^{\tau} \cr {}_bK_1 b_{r_n}^{\tau} + (1-{}_bK_2) b_{r_{n+1}}^{\tau} + {}_bK_3 b_{r_{n+2}}^{\tau} \cr \vdots \end{pmatrix}$$
 
 The tridiagonal system is solved directly with NumPy.
