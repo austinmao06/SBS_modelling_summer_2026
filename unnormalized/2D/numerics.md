@@ -120,7 +120,7 @@ The tridiagonal system is solved directly with NumPy.
 
 # Radial Boundary Conditions
 
-One detail skimmed over above is the resolution of boundary conditions, as the equations break down either at r = 0 or if there does not exist both $r_{n-1}$ and $r_{n+1}$. 
+The equations above break down either at r = 0 and at r = $r_{Max}$ due to the r = 0 singularity and the lack of both $r_{n-1}$ and $r_{n+1}$. 
 
 <h2>Outer Boundary Condition</h2>
 
@@ -128,6 +128,86 @@ The outer boundary condition is simply resolved with the PEC condition: Perfect 
 
 $$\begin{pmatrix}  &  \ddots &  & \cr & \ddots & \ddots \cr & & 0 & 1 \end{pmatrix} \begin{pmatrix} \vdots \cr \vdots \cr a_{r_{Max}}^{mid} \end{pmatrix} = \begin{pmatrix} \vdots \cr \vdots \cr 0 \end{pmatrix}$$
 
-<h2>Inner Boundary </h2>
+## Inner Boundary (Axis, $r = 0$)
 
-The inner boundary condition is resolved using 
+We take the $r \to 0$ limit using the field's evenness.
+
+Let $a^{(j)}$ denote the jth derivative of a with respect to r.
+
+**Taylor expansion for small $r$.**
+
+$$a(r) = a(0) + a^{(1)}(0)r + a^{(2)}(0)\frac{r^2}{2} + a^{(3)}(0)\frac{r^3}{6} + O(r^4)$$
+
+**Evenness.** The field is even about the axis, $a(r) = a(-r)$, so all odd derivatives vanish.
+
+$$a(r) = a(0) + a^{(2)}(0)\frac{r^2}{2} + O(r^4)$$
+
+**Derivatives.**
+
+$$\frac{\partial a}{\partial r} = a^{(2)}(0)r + O(r^3)$$
+
+$$\frac{\partial^2 a}{\partial r^2} = a^{(2)}(0) + O(r^2)$$
+
+**Laplacian at the axis.**
+
+$$\nabla^2 a = \frac{\partial^2 a}{\partial r^2} + \frac{1}{r}\frac{\partial a}{\partial r} = 2a^{(2)}(0) + O(r^2)$$
+
+Evaluated at $r = 0$:
+
+$$\nabla^2 a = 2a^{(2)}(0) = 2\frac{\partial^2 a}{\partial r^2}$$
+
+**Discretization.**
+
+$$\frac{\partial^2 a}{\partial r^2} \approx \frac{a_{r_1} + a_{r_{-1}} - 2a_{r_0}}{dr^2}$$
+
+Evenness gives $a_{r_{-1}} = a_{r_1}$ (generally $a_{r_{-m}} = a_{r_m}$), so:
+
+$$\frac{\partial^2 a}{\partial r^2} \approx \frac{2(a_{r_1} - a_{r_0})}{dr^2}$$
+
+**Result.**
+
+$$\nabla^2 a \Big|_{r_0} \approx \frac{4(a_{r_1} - a_{r_0})}{dr^2}$$
+
+**Solving for matrix coefficients.**
+
+Using the axis Laplacian, here $r = r_0 = 0$ is the axis node and $r+dr = r_1$ the first off-axis node. 
+
+### Pump
+
+$$\frac{\partial a}{\partial \zeta} = \frac{i}{4k_L}\left(\frac{4}{dr^2}\right)(a_{r+dr} - a_r)$$
+
+**CN half-step.**
+
+$$\frac{a_r^{mid} - a_r^{\zeta}}{d\zeta/2} = \frac{1}{2}\frac{i}{k_L dr^2}(a_{r+dr}^{mid} + a_{r+dr}^{\zeta} - a_r^{mid} - a_r^{\zeta})$$
+
+$$a_r^{mid} - a_r^{\zeta} = \frac{i d\zeta}{4k_L dr^2}(a_{r+dr}^{mid} + a_{r+dr}^{\zeta} - a_r^{mid} - a_r^{\zeta})$$
+
+$$(1 + {}_aK_2)a_r^{mid} + (-{}_aK_3)a_{r+dr}^{mid} = (1 - {}_aK_2)a_r^{\zeta} + ({}_aK_3)a_{r+dr}^{\zeta}$$
+
+$${}_aK_1 = 0$$
+
+$${}_aK_2 = {}_aK_3 = \frac{i d\zeta}{4k_L dr^2}$$
+
+**In matrix form.**
+ 
+$$\begin{pmatrix} 1+{}_aK_2 & -{}_aK_3 & & \cr & \ddots & \ddots & \cr & & \ddots & \end{pmatrix} \begin{pmatrix} a_{r_0}^{mid} \cr \vdots \cr \vdots \end{pmatrix} = \begin{pmatrix} (1-{}_aK_2)a_{r_0}^{\zeta} + {}_aK_3 a_{r_1}^{\zeta} \cr \vdots \cr \vdots \end{pmatrix}$$
+
+### Seed
+
+$$\frac{\partial b}{\partial \tau} = -\frac{ic}{2k_L n}\left(\frac{4}{dr^2}\right)(b_{r+dr} - b_r)$$
+
+**CN half-step.**
+
+$$\frac{b_r^{mid} - b_r^{\tau}}{d\tau/2} = \frac{1}{2}\left(-\frac{2ic}{k_L n dr^2}\right)(b_{r+dr}^{mid} + b_{r+dr}^{\tau} - b_r^{mid} - b_r^{\tau})$$
+
+$$b_r^{mid} - b_r^{\tau} = -\frac{ic d\tau}{2k_L n dr^2}(b_{r+dr}^{mid} + b_{r+dr}^{\tau} - b_r^{mid} - b_r^{\tau})$$
+
+$$(1 + {}_bK_2)b_r^{mid} + (-{}_bK_3)b_{r+dr}^{mid} = (1 - {}_bK_2)b_r^{\tau} + ({}_bK_3)b_{r+dr}^{\tau}$$
+
+$${}_bK_1 = 0$$
+
+$${}_bK_2 = {}_bK_3 = -\frac{ic d\tau}{2k_L n dr^2}$$
+
+**In matrix form.**
+ 
+$$\begin{pmatrix} 1+{}_bK_2 & -{}_bK_3 & & \cr & \ddots & \ddots & \cr & & \ddots & \end{pmatrix} \begin{pmatrix} b_{r_0}^{mid} \cr \vdots \cr \vdots \end{pmatrix} = \begin{pmatrix} (1-{}_bK_2)b_{r_0}^{\tau} + {}_bK_3 b_{r_1}^{\tau} \cr \vdots \cr \vdots \end{pmatrix}$$
