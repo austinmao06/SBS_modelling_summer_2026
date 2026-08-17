@@ -128,6 +128,7 @@ The outer boundary condition is simply resolved with the PEC condition: Perfect 
 
 $$\begin{pmatrix}  &  \ddots &  & \cr & \ddots & \ddots \cr & & 0 & 1 \end{pmatrix} \begin{pmatrix} \vdots \cr \vdots \cr a_{r_{Max}}^{mid} \end{pmatrix} = \begin{pmatrix} \vdots \cr \vdots \cr 0 \end{pmatrix}$$
 
+To minimize the unrealistic PEC effects on diffraction for internal radii, Gaussian/Supergaussian radial profiles were implemented for both seed and pump with $\sigma << r_{Max}$.
 ## Inner Boundary (Axis, $r = 0$)
 
 We take the $r \to 0$ limit using the field's evenness.
