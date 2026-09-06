@@ -1,5 +1,5 @@
 """Gets time at which the seed's leading edge has propagated dist_true meters
-leading edge is defined as the point on the front side with intensity equal to half initial peak intensity
+leading edge is defined as the point on the front side with intensity equal to initial peak intensity
 """
 
 def get_time(dist_true, z_true = z_true, intensity = b**2, t_true = t_true):
