@@ -151,11 +151,11 @@ $$\frac{\partial^2 a}{\partial r^2} = a^{(2)}(0) + O(r^2)$$
 
 **Laplacian at the axis.**
 
-$$\nabla^2 a = \frac{\partial^2 a}{\partial r^2} + \frac{1}{r}\frac{\partial a}{\partial r} = 2a^{(2)}(0) + O(r^2)$$
+$$\nabla_T^2 a = \frac{\partial^2 a}{\partial r^2} + \frac{1}{r}\frac{\partial a}{\partial r} = 2a^{(2)}(0) + O(r^2)$$
 
 Evaluated at $r = 0$:
 
-$$\nabla^2 a = 2a^{(2)}(0) = 2\frac{\partial^2 a}{\partial r^2}$$
+$$\nabla_T^2 a = 2a^{(2)}(0) = 2\frac{\partial^2 a}{\partial r^2}$$
 
 **Discretization.**
 
@@ -167,7 +167,7 @@ $$\frac{\partial^2 a}{\partial r^2} \approx \frac{2(a_{r_1} - a_{r_0})}{dr^2}$$
 
 **Result.**
 
-$$\nabla^2 a \Big|_{r_0} \approx \frac{4(a_{r_1} - a_{r_0})}{dr^2}$$
+$$\nabla_T^2 a \Big|_{r_0} \approx \frac{4(a_{r_1} - a_{r_0})}{dr^2}$$
 
 **Solving for matrix coefficients.**
 
