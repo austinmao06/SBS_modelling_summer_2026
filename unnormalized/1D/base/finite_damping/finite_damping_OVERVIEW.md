@@ -16,14 +16,14 @@ $$\frac{2}{\Gamma_B}\left(\frac{\partial f}{\partial \tau} + \frac{c}{n}\frac{\p
 
 ## Simplifying with fast depletion approximation, no detuning 
 
-$$\frac{2c}{n\Gamma_B}\frac{\partial f}{\partial \zeta} + f = gab$$
+$$\frac{2c}{n\Gamma_B}\frac{\partial f}{\partial \zeta} + f = gab^*$$
 
 ## Final reduced system
 
 $$\boxed{2\frac{\partial a}{\partial \zeta} = -k_{norm}bf}$$
 
-$$\boxed{\frac{n}{c}\frac{\partial b}{\partial \tau} = k_{norm}af}$$
+$$\boxed{\frac{n}{c}\frac{\partial b}{\partial \tau} = k_{norm}af^*}$$
 
-$$\boxed{\frac{2c}{n\Gamma_B}\frac{\partial f}{\partial \zeta} + f = gab}$$
+$$\boxed{\frac{2c}{n\Gamma_B}\frac{\partial f}{\partial \zeta} + f = gab^*}$$
 
 Because $f$ now carries its own dynamics, this is a genuine three-field system rather than the two-wave reduction obtained in the $\Gamma_B \to \infty$ limit.
