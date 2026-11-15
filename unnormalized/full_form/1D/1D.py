@@ -219,7 +219,7 @@ def full_form(d=d, zeta_range=zeta_range, dzeta=dzeta, tau_range=tau_range, dtau
 sigmas       = [0.5,0.6,0.7,0.8]
 b_0_initials = [1]
 #DETUNING     = np.zeros_like(zeta)
-DETUNING = 0
+DETUNING = np.zeros_like(zeta)
 
 runs = {}   # key: (b0, sigma) -> dict of arrays
 for b0 in b_0_initials:
