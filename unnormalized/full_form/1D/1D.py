@@ -193,7 +193,7 @@ def full_form(d=d, zeta_range=zeta_range, dzeta=dzeta, tau_range=tau_range, dtau
         RS = BC(V0 + dtau * (Tab_L[2,1]*LV1 + Tab_N[2,0]*N1 + Tab_N[2,1]*N2))
         V2 = solve_banded((1,1), solve_M, RS)
         V0 = V2
-        if next_save <save_length and j == save_indices[next_save]:
+        if next_save <save_length and j+1 == save_indices[next_save]:
             a[next_save,:] = V0[:Nzeta]; b[next_save,:] = V0[Nzeta:2*Nzeta]; f[next_save,:] = V0[2*Nzeta:3*Nzeta]
             next_save +=1
     
