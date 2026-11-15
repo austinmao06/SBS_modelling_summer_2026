@@ -1,5 +1,3 @@
-#SETUP
-
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.linalg import solve_banded
@@ -43,11 +41,13 @@ print(f"G = {round(G,2)}")
 print(f"k = {round(kNorm,4)}")
 print(f"d = {round(d,3)}")
 
-#Params
+
+#setup
+
 dzeta = 0.01                    # zeta resolution (m)
 dtau = 0.8 * dzeta / c_light       # CFL-style: 0.8 * (dzeta / c). tau is TRUE time (s); c/n≈c since n≈1
 tau_range = [0, 130e-9]
-zeta_range = [-10, 5]
+zeta_range = [-20, 5]
 tau = np.arange(tau_range[0], tau_range[1], dtau)
 zeta = np.arange(zeta_range[0], zeta_range[1], dzeta)
 Ntau = len(tau)
@@ -58,7 +58,7 @@ z_true = (zeta[None, :] - c_light*tau[:, None]/n)   # shape (Ntau, Nzeta), lab p
 a0 = 1
 b0 = 1
 sigma = 1
-b_exp = 2
+b_exp = 1
 
 times_to_save = np.arange(0,tau_range[1], 1e-9)
 save_indices = sorted({int(np.argmin(np.abs(tau - t))) for t in times_to_save})
@@ -73,7 +73,51 @@ Tab_L = np.array([[0,0,0],[0,theta,0], [0,1-theta,theta]])
 Tab_N = np.array([[0,0,0],[theta,0,0],[eta,1-eta,0]])
 #Tab_N_weight = np.array([eta,1-eta,0])
 
+#helper functions
+
+b = 1 #placeholder
+a=1
+def FWHM(z_true=z_true, b=b, tau=tau):
+    def _fwhm(x, y):
+        if y.size < 2:
+            return np.nan
+        ipk  = int(np.argmax(y))
+        half = 0.5 * y[ipk]
+        if not np.isfinite(half) or half <= 0:
+            return np.nan
+
+        # left crossing: last node before the peak that sits below half max
+        lo = np.flatnonzero(y[:ipk] < half)
+        if lo.size == 0:
+            return np.nan                      # peak not resolved on the left
+        i = lo[-1]
+        xlo = x[i] + (half - y[i]) * (x[i+1] - x[i]) / (y[i+1] - y[i])
+
+        # right crossing: first node after the peak that sits below half max
+        hi = np.flatnonzero(y[ipk+1:] < half)
+        if hi.size == 0:
+            return np.nan                      # peak not resolved on the right
+        j = ipk + 1 + hi[0]
+        xhi = x[j-1] + (half - y[j-1]) * (x[j] - x[j-1]) / (y[j] - y[j-1])
+
+        return float(xhi - xlo)
+
+    return np.array([_fwhm(z_true[ti, :], np.abs(b[ti, :])**2) for ti in range(b.shape[0])])
+
+#implicit efficiency is a good approximation for later times when b>>a (explicit efficiency is unused because integration overestimates seed growth)
+
+def get_eff(a = a, tau=tau):
+    a_in  = np.abs(a[:, 0])**2
+    a_out = np.abs(a[:, -1])**2
+    cumtrap = lambda y: np.concatenate(([0.0], np.cumsum(0.5*(y[1:]+y[:-1])*np.diff(tau))))
+    supplied = cumtrap(a_in)
+    absorbed = cumtrap(a_in - a_out)
+    eta = np.divide(absorbed, supplied, out=np.full_like(tau, np.nan, dtype=float), where=(supplied > 0))
+    eta[0] = np.nan
+    return eta
+
 #integrator
+
 def full_form(d=d, zeta_range=zeta_range, dzeta=dzeta, tau_range=tau_range, dtau=dtau,
            a0=a0, b0=b0, sigma=sigma, g=g, G=G, b_exp=b_exp,
            phi_a_initial=phi_a_initial, phi_b_initial=phi_b_initial, times_to_save=times_to_save, 
@@ -170,7 +214,155 @@ def full_form(d=d, zeta_range=zeta_range, dzeta=dzeta, tau_range=tau_range, dtau
     return a, b, f, phi_a, phi_b, phi_f
 
 
+#example usage
+
+sigmas       = [0.5,0.6,0.7,0.8]
+b_0_initials = [1]
+#DETUNING     = np.zeros_like(zeta)
+DETUNING = 0
+
+runs = {}   # key: (b0, sigma) -> dict of arrays
+for b0 in b_0_initials:
+    for s in sigmas:
+        a, b, f, *_ = full_form(d=DETUNING, sigma=s, b0=b0)   # CHECK kwarg name
+        runs[(b0, s)] = dict(a=a, b=b, f=f, fwhm=FWHM(b=b))
+        print(f"done  b0 = {b0:<5}  sigma = {s}")
+
+#plot
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
+
+# ---------------- toggles ----------------
+SHOW_SEED   = True
+SHOW_PUMP   = True
+SHOW_AC     = True
+SHOW_TARGET = True
+SHOW_ANNOT  = True
+SHOW_LEGEND = True
+USE_XLIM    = False
+
+# ---------------- settings ----------------
+TIMES      = [130e-9]             # snapshot times (s) -- add as many as you like
+COLORS     = ["blue", "green", "blue"]   # used in order; extra snapshots fall back to tab10
+ANNOT_IDX  = -1                         # which snapshot the annotation reports (-1 = last)
+XLIM       = (-2.5, 1.5)
+FWHM_UNIT  = "m"
+TARGET     = -0.7
+PARAMS = {r"$g$": g, r"$\Gamma_B$": GammaB,
+          r"$n$": n, r"$k_{norm}$": kNorm}
+
+# ---------------- unit conversions ----------------
+field_norm = (I0/2*1e-10) / 1000.0                   # |b|^2 -> MW/cm^2 -> GW/cm^2
+u_ac       = c_sound**2 * rho_0 * rho_bar**2 / 2.0   # |f|^2 -> J/m^3
+ac_norm    = 1000.0                                  # J/m^3 -> mJ/m^3
+
+# ---------------- grid ----------------
+colors   = [COLORS[k] if k < len(COLORS) else plt.cm.tab10(k % 10)
+            for k in range(len(TIMES))]
+t_idxs   = [np.argmin(np.abs(times_to_save - T)) for T in TIMES]
+t_actual = [times_to_save[i] for i in t_idxs]
+t_idx    = t_idxs[ANNOT_IDX]            # used by pick() and the annotation
+pick     = lambda q: np.asarray(q)[t_idx] if np.ndim(q) else q
+i_target = np.argmin(np.abs(zeta - TARGET))
+
+nrow, ncol = len(b_0_initials), len(sigmas)
+fig, axes = plt.subplots(nrow, ncol, sharex=True, sharey="row",
+                         figsize=(6.0 * ncol, 5 * nrow), squeeze=False)
+
+ac_axes   = np.empty((nrow, ncol), dtype=object)
+pump_axes = np.empty((nrow, ncol), dtype=object)
+
+for r, b0 in enumerate(b_0_initials):
+    for j, s in enumerate(sigmas):
+        run = runs[(b0, s)]
+        ax  = axes[r, j]
+
+        I_snaps = [np.abs(run["b"][ti, :])**2 * field_norm for ti in t_idxs]
+
+        # ---- seed ----
+        if SHOW_SEED:
+            for I_k, col in zip(I_snaps, colors):
+                ax.plot(zeta, I_k, color=col, linestyle="-")
+
+        if SHOW_TARGET:
+            ax.axvline(TARGET, color="black", linestyle="--", alpha=0.5)
+
+        # ---- pump on its own axis ----
+        if SHOW_PUMP:
+            ax_pump = ax.twinx()
+            pump_axes[r, j] = ax_pump
+            if j > 0:                              # share within the row
+                ax_pump.sharey(pump_axes[r, 0])
+            for ti, col in zip(t_idxs, colors):
+               ax_pump.plot(zeta, np.abs(run["a"][ti, :])**2 * field_norm,
+                             color=col, linestyle="--", alpha=0.8)
+               ax_pump.set_ylim(top = 3*np.max(np.abs(run["a"][ti, :])**2 * field_norm))
+            if j == ncol - 1:
+                ax_pump.set_ylabel(r"Pump (GW/cm$^2$)")
+            else:
+                ax_pump.tick_params(labelright=False)
+
+        # ---- acoustic energy density on its own axis ----
+        if SHOW_AC:
+            ax_ac = ax.twinx()
+            ac_axes[r, j] = ax_ac
+            if SHOW_PUMP:                          # keep clear of the pump axis
+                ax_ac.spines['right'].set_position(('outward', 55))
+            if j > 0:                              # share within the row
+                ax_ac.sharey(ac_axes[r, 0])
+            for ti, col in zip(t_idxs, colors):
+                ax_ac.plot(zeta, np.abs(run["f"][ti, :])**2 * u_ac * ac_norm,
+                           color=col, linestyle=":", alpha=0.8)
+            if j == ncol - 1:
+                ax_ac.set_ylabel(r"Acoustic (mJ/m$^3$)")
+            else:
+                ax_ac.tick_params(labelright=False)
 
 
+        # ---- annotation box ----
+        if SHOW_ANNOT:
+            I_ann = I_snaps[ANNOT_IDX]
+            ax.text(0.03, 0.95,
+                    f"peak = {I_ann.max():.3g} GW/cm$^2$\n"
+                    f"FWHM = {pick(run['fwhm']):.3g} {FWHM_UNIT}\n"
+                    f"TARGET = {I_ann[i_target]:.3g} GW/cm$^2$",
+                    transform=ax.transAxes, ha="left", va="top", fontsize=8, zorder=5,
+                    bbox=dict(boxstyle="round", fc="white", ec="0.7", alpha=0.85))
 
+        # snapshot-time key, on every panel
+        for k, (t, col) in enumerate(zip(t_actual, colors)):
+            ax.text(0.97, 0.95 - 0.07 * k, f"t = {t*1e9:.0f} ns",
+                    transform=ax.transAxes, ha="right", va="top",
+                    fontsize=8, color=col, fontweight="bold", zorder=5)
 
+        if r == 0:
+            ax.set_title(rf"$\sigma$ = {s}m")
+        if r == nrow - 1:
+            ax.set_xlabel(r"$\zeta$ (m)")
+        ax.grid(alpha=0.3)
+
+    axes[r, 0].set_ylabel(f"$b_0$ = {b0} {b0*field_norm} GW/cm$^2$" + ("\nSeed (GW/cm$^2$)" if SHOW_SEED else ""))
+    if not SHOW_SEED:
+        axes[r, 0].tick_params(labelleft=False)    # empty seed axis: no misleading ticks
+
+if USE_XLIM:
+    axes[0, 0].set_xlim(*XLIM)
+
+if SHOW_LEGEND:
+    handles = []
+    if SHOW_SEED:
+        handles.append(Line2D([0], [0], color="gray", linestyle="-",  label="Seed"))
+    if SHOW_PUMP:
+        handles.append(Line2D([0], [0], color="gray", linestyle="--", label="Pump"))
+    if SHOW_AC:
+        handles.append(Line2D([0], [0], color="gray", linestyle=":",  label="Acoustic"))
+    if handles:
+        axes[0, 0].legend(handles=handles, loc="lower right", fontsize=8)
+
+title = ", ".join(f"{k} = {v:.3g}" for k, v in PARAMS.items())
+if SHOW_ANNOT:
+    title += f"   |   annotations at t = {t_actual[ANNOT_IDX]*1e9:.1f} ns"
+fig.suptitle(title, fontsize=13)
+fig.tight_layout(rect=[0, 0, 1, 0.96])
+plt.show()
