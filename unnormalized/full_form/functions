@@ -1,0 +1,40 @@
+b = 1 #placeholder
+a=1
+def FWHM(z_true=z_true, b=b, tau=tau):
+    def _fwhm(x, y):
+        if y.size < 2:
+            return np.nan
+        ipk  = int(np.argmax(y))
+        half = 0.5 * y[ipk]
+        if not np.isfinite(half) or half <= 0:
+            return np.nan
+
+        # left crossing: last node before the peak that sits below half max
+        lo = np.flatnonzero(y[:ipk] < half)
+        if lo.size == 0:
+            return np.nan                      # peak not resolved on the left
+        i = lo[-1]
+        xlo = x[i] + (half - y[i]) * (x[i+1] - x[i]) / (y[i+1] - y[i])
+
+        # right crossing: first node after the peak that sits below half max
+        hi = np.flatnonzero(y[ipk+1:] < half)
+        if hi.size == 0:
+            return np.nan                      # peak not resolved on the right
+        j = ipk + 1 + hi[0]
+        xhi = x[j-1] + (half - y[j-1]) * (x[j] - x[j-1]) / (y[j] - y[j-1])
+
+        return float(xhi - xlo)
+
+    return np.array([_fwhm(z_true[ti, :], np.abs(b[ti, :])**2) for ti in range(b.shape[0])])
+
+#implicit efficiency is a good approximation for later times when b>>a (explicit efficiency is unused because integration overestimates seed growth)
+
+def get_eff(a = a, tau=tau):
+    a_in  = np.abs(a[:, 0])**2
+    a_out = np.abs(a[:, -1])**2
+    cumtrap = lambda y: np.concatenate(([0.0], np.cumsum(0.5*(y[1:]+y[:-1])*np.diff(tau))))
+    supplied = cumtrap(a_in)
+    absorbed = cumtrap(a_in - a_out)
+    eta = np.divide(absorbed, supplied, out=np.full_like(tau, np.nan, dtype=float), where=(supplied > 0))
+    eta[0] = np.nan
+    return eta
