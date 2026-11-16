@@ -120,8 +120,8 @@ def get_eff(a = a, tau=tau):
 
 def full_form(d=d, zeta_range=zeta_range, dzeta=dzeta, tau_range=tau_range, dtau=dtau,
            a0=a0, b0=b0, sigma=sigma, g=g, G=G, b_exp=b_exp,
-           phi_a_initial=phi_a_initial, phi_b_initial=phi_b_initial, times_to_save=times_to_save, 
-              save_indices = save_indices, save_length = save_length):
+           phi_a_initial=phi_a_initial, phi_b_initial=phi_b_initial, times_to_save=times_to_save,
+              save_indices = save_indices, save_length = save_length, area = 1.0):
     #_______________________________________________________________________________________________________________
     #_______________________________________________________________________________________________________________
     #SETUP__________________________________________________________________________________________________________
@@ -167,22 +167,39 @@ def full_form(d=d, zeta_range=zeta_range, dzeta=dzeta, tau_range=tau_range, dtau
     fL1 = np.ones(Nzeta) *c_light/(n*2*dzeta)
     fL1[0] = 0; fL1[-1] = c_light/(n*dzeta)
     fL2 = np.ones(Nzeta) * -GammaB * (1-(1j)*d)/2
-    fL2[0] = 0; fL2[-1] = -c_light/(n*dzeta) - GammaB * (1-(1j)*d)/2
+    fL2[0] = 0; fL2[-1] = -c_light/(n*dzeta) - GammaB * (1-(1j)*d[-1])/2
     fL3 = np.ones(Nzeta) * -c_light/(n*2*dzeta)
     fL3[0] = 0; fL3[-1] = 0
 
     L1 = np.concatenate((aL1, bL1, fL1)); L2 = np.concatenate((aL2, bL2, fL2)); L3 = np.concatenate((aL3, bL3, fL3))
     LM = np.zeros((3, 3*Nzeta), dtype = complex)
     LM[0,1:] = L3[:-1]; LM[1,:] = L2; LM[2,:-1] = L1[1:]
-    
+
     solve_M = -dtau*theta*LM
     solve_M[1, :] = solve_M[1, :] + 1
     L = dia_array((LM, [1,0,-1]), shape=(3*Nzeta, 3*Nzeta))
     #________________________________________________________________________________________________________________
     #________________________________________________________________________________________________________________
+    #Energy diagnostics setup (area in m^2)__________________________________________________________________________
+    I_unit    = I0/2                                   # W/m^2 per |field|^2
+    eps_light = area * (n/c_light) * I_unit            # J per (|a|^2 or |b|^2) per m of zeta
+    eps_ac    = area * c_sound**2*rho_0*rho_bar**2/2   # J per |f|^2 per m of zeta
+    v_pump    = 2*c_light/n                            # pump speed across the zeta boundaries
+    trap      = lambda y: dzeta*(y.sum() - 0.5*(y[0] + y[-1]))
+    def grid_energy(V):                                # J on the grid: pump, seed, acoustic
+        return (eps_light*trap(np.abs(V[:Nzeta])**2), eps_light*trap(np.abs(V[Nzeta:2*Nzeta])**2),
+                eps_ac*trap(np.abs(V[2*Nzeta:3*Nzeta])**2))
+    def edge_power(V):                                 # W: pump entering at left, leaving at right = (2c/n) u A
+        return v_pump*eps_light*np.abs(V[0])**2, v_pump*eps_light*np.abs(V[Nzeta-1])**2
+    rec = np.empty((save_length, 5))                   # per saved time: pump_grid, seed_grid, ac_grid, pump_in, pump_out
+    #________________________________________________________________________________________________________________
+    #________________________________________________________________________________________________________________
     #Integration_____________________________________________________________________________________________________
-    
+
     V0 = np.concatenate((a[0,:], b[0,:],f[0,:]))
+    rec[0] = (*grid_energy(V0), 0.0, 0.0)
+    P_in_prev, P_out_prev = edge_power(V0)
+    pump_in_cum = 0.0; pump_out_cum = 0.0              # running time integrals of the edge powers (every step)
     next_save = 1
     for j in range(Ntau-1):
         N1 = N(V0)
@@ -193,10 +210,24 @@ def full_form(d=d, zeta_range=zeta_range, dzeta=dzeta, tau_range=tau_range, dtau
         RS = BC(V0 + dtau * (Tab_L[2,1]*LV1 + Tab_N[2,0]*N1 + Tab_N[2,1]*N2))
         V2 = solve_banded((1,1), solve_M, RS)
         V0 = V2
+        P_in, P_out = edge_power(V0)
+        pump_in_cum  += 0.5*dtau*(P_in_prev + P_in)     # trapezoid in tau
+        pump_out_cum += 0.5*dtau*(P_out_prev + P_out)
+        P_in_prev, P_out_prev = P_in, P_out
         if next_save <save_length and j+1 == save_indices[next_save]:
             a[next_save,:] = V0[:Nzeta]; b[next_save,:] = V0[Nzeta:2*Nzeta]; f[next_save,:] = V0[2*Nzeta:3*Nzeta]
+            rec[next_save] = (*grid_energy(V0), pump_in_cum, pump_out_cum)
             next_save +=1
-    
+    #________________________________________________________________________________________________________________
+    #________________________________________________________________________________________________________________
+    #Energy diagnostics (one value per saved time)___________________________________________________________________
+    pump_grid, seed_grid, ac_grid, pump_in, pump_out = rec.T
+    reservoir = pump_in_cum - pump_in                  # pump not yet entered (vs end of run)
+
+    total_energy = reservoir + pump_out + ac_grid + seed_grid + pump_grid
+    E_in  = pump_grid[0] + pump_in - pump_grid                    # pump given up by the pump field
+    E_out = (seed_grid - seed_grid[0]) + ac_grid + pump_out       # where it went
+    eff   = (seed_grid - seed_grid[0]) / (pump_grid[0] + seed_grid[0] + ac_grid[0] + pump_in)
 
     phi_a = np.angle(a)
     phi_b = np.angle(b)
@@ -211,7 +242,7 @@ def full_form(d=d, zeta_range=zeta_range, dzeta=dzeta, tau_range=tau_range, dtau
     if len(blown[0]) > 0:
         print(f"First blowup at tau index {blown[0].min()}, tau = {tau[blown[0].min()]:.2f}")
 
-    return a, b, f, phi_a, phi_b, phi_f
+    return a, b, f, total_energy, (E_in, E_out), eff, phi_a, phi_b, phi_f
 
 
 #example usage
