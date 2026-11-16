@@ -192,12 +192,33 @@ def full_form(d=d, zeta_range=zeta_range, dzeta=dzeta, tau_range=tau_range, dtau
     def edge_power(V):                                 # W: pump entering at left, leaving at right = (2c/n) u A
         return v_pump*eps_light*np.abs(V[0])**2, v_pump*eps_light*np.abs(V[Nzeta-1])**2
     rec = np.empty((save_length, 5))                   # per saved time: pump_grid, seed_grid, ac_grid, pump_in, pump_out
+    #FWHM of seed intensity |b|^2 (in zeta; identical to lab-z FWHM since z = zeta - c*tau/n is a shift)______________
+    def _fwhm(x, y):
+        if y.size < 2:
+            return np.nan
+        ipk  = int(np.argmax(y))
+        half = 0.5 * y[ipk]
+        if not np.isfinite(half) or half <= 0:
+            return np.nan
+        lo = np.flatnonzero(y[:ipk] < half)            # left crossing: last node before peak below half max
+        if lo.size == 0:
+            return np.nan                              # peak not resolved on the left
+        i = lo[-1]
+        xlo = x[i] + (half - y[i]) * (x[i+1] - x[i]) / (y[i+1] - y[i])
+        hi = np.flatnonzero(y[ipk+1:] < half)          # right crossing: first node after peak below half max
+        if hi.size == 0:
+            return np.nan                              # peak not resolved on the right
+        j = ipk + 1 + hi[0]
+        xhi = x[j-1] + (half - y[j-1]) * (x[j] - x[j-1]) / (y[j] - y[j-1])
+        return float(xhi - xlo)
+    fwhm = np.empty(save_length)
     #________________________________________________________________________________________________________________
     #________________________________________________________________________________________________________________
     #Integration_____________________________________________________________________________________________________
 
     V0 = np.concatenate((a[0,:], b[0,:],f[0,:]))
     rec[0] = (*grid_energy(V0), 0.0, 0.0)
+    fwhm[0] = _fwhm(zeta, np.abs(b[0,:])**2)
     P_in_prev, P_out_prev = edge_power(V0)
     pump_in_cum = 0.0; pump_out_cum = 0.0              # running time integrals of the edge powers (every step)
     next_save = 1
@@ -217,6 +238,7 @@ def full_form(d=d, zeta_range=zeta_range, dzeta=dzeta, tau_range=tau_range, dtau
         if next_save <save_length and j+1 == save_indices[next_save]:
             a[next_save,:] = V0[:Nzeta]; b[next_save,:] = V0[Nzeta:2*Nzeta]; f[next_save,:] = V0[2*Nzeta:3*Nzeta]
             rec[next_save] = (*grid_energy(V0), pump_in_cum, pump_out_cum)
+            fwhm[next_save] = _fwhm(zeta, np.abs(b[next_save,:])**2)
             next_save +=1
     #________________________________________________________________________________________________________________
     #________________________________________________________________________________________________________________
@@ -225,9 +247,9 @@ def full_form(d=d, zeta_range=zeta_range, dzeta=dzeta, tau_range=tau_range, dtau
     reservoir = pump_in_cum - pump_in                  # pump not yet entered (vs end of run)
 
     total_energy = reservoir + pump_out + ac_grid + seed_grid + pump_grid
-    E_in  = pump_grid[0] + pump_in - pump_grid                    # pump given up by the pump field
-    E_out = (seed_grid - seed_grid[0]) + ac_grid + pump_out       # where it went
-    eff   = (seed_grid - seed_grid[0]) / (pump_grid[0] + seed_grid[0] + ac_grid[0] + pump_in)
+    E_in  = pump_grid[0] + pump_in                  # pump given up by the pump field
+    E_out = (seed_grid - seed_grid[0]) + ac_grid + pump_out + pump_grid       # where it went
+    eff   = (seed_grid - seed_grid[0]) / (pump_grid[0] + + pump_in)
 
     phi_a = np.angle(a)
     phi_b = np.angle(b)
@@ -242,21 +264,20 @@ def full_form(d=d, zeta_range=zeta_range, dzeta=dzeta, tau_range=tau_range, dtau
     if len(blown[0]) > 0:
         print(f"First blowup at tau index {blown[0].min()}, tau = {tau[blown[0].min()]:.2f}")
 
-    return a, b, f, total_energy, (E_in, E_out), eff, phi_a, phi_b, phi_f
+    return a, b, f, fwhm, total_energy, (E_in, E_out), eff, phi_a, phi_b, phi_f
 
 
 #example usage
 
-sigmas       = [0.5,0.6,0.7,0.8]
+sigmas       = [0.5,0.6]
 b_0_initials = [1]
-#DETUNING     = np.zeros_like(zeta)
 DETUNING = np.zeros_like(zeta)
 
 runs = {}   # key: (b0, sigma) -> dict of arrays
 for b0 in b_0_initials:
     for s in sigmas:
-        a, b, f, *_ = full_form(d=DETUNING, sigma=s, b0=b0)   # CHECK kwarg name
-        runs[(b0, s)] = dict(a=a, b=b, f=f, fwhm=FWHM(b=b))
+        a, b, f, fwhm, *_ = full_form(d=DETUNING, sigma=s, b0=b0)   # CHECK kwarg name
+        runs[(b0, s)] = dict(a=a, b=b, f=f, fwhm=fwhm)
         print(f"done  b0 = {b0:<5}  sigma = {s}")
 
 #plot
