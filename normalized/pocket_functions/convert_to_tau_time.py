@@ -5,7 +5,7 @@ def convert_to_tau_time(true_time):
 
 #Usage
 ti = np.argmin(np.abs(tau - convert_to_tau_time(127e-9))) #finds nearest tau index to 127ns true time
-plt.plot(zeta, b[ti,]**2)
+plt.plot(zeta, np.abs(b[ti,])**2)
 
 #Additional Note
 """

@@ -1,6 +1,8 @@
+#gas parameters
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.linalg import solve_banded
+from scipy.sparse import dia_array
 
 GammaB = 2.0974e9      ###             ###                          #Hz. Brillouin Linewidth of Kr gas
 OmegaB = 1.5075e9                ###            ###                 #Hz. Frequency of Brillouin Shift.
@@ -43,28 +45,46 @@ print(f"d = {round(d,3)}")
 
 
 #setup
+#############################################################################
 
-dzeta = 0.01                    # zeta resolution (m)
+#BASE SETUP##################################################################
+dzeta = 0.01                       # zeta resolution (m)
 dtau = 0.8 * dzeta / c_light       # CFL-style: 0.8 * (dzeta / c). tau is TRUE time (s); c/n≈c since n≈1
+
 tau_range = [0, 130e-9]
 zeta_range = [-20, 5]
+
 tau = np.arange(tau_range[0], tau_range[1], dtau)
 zeta = np.arange(zeta_range[0], zeta_range[1], dzeta)
+
 Ntau = len(tau)
 Nzeta = len(zeta)
 
-t_true = tau                                   # physical time per tau index (s)
+t_true = tau                                        # physical time per tau index (s)
 z_true = (zeta[None, :] - c_light*tau[:, None]/n)   # shape (Ntau, Nzeta), lab position (m)
+#############################################################################
+
+#compressed dimensions for saving###############################################################
+compressed_tau = np.arange(0,tau_range[1], 1e-9)
+compressed_tau_indices = sorted({int(np.argmin(np.abs(tau - t))) for t in compressed_tau})
+Ncompressed_tau = len(compressed_tau_indices)
+#############################################################################
+
+#Longitudinal Pulse Parameters ##############################################
 a0 = 1
 b0 = 1
-sigma = 1
 b_exp = 1
+sigma = 1 #seed longitudinal gaussian width
+phi_a_initial = 0 #initial pump phase
+phi_b_initial = 0 #initial seed phase
+#############################################################################
 
-times_to_save = np.arange(0,tau_range[1], 1e-9)
-save_indices = sorted({int(np.argmin(np.abs(tau - t))) for t in times_to_save})
-save_length = len(save_indices)
+#Detuning Grid###############################################################
+d = np.zeros_like(zeta) #zeta-dependent detuning factor
+plt.figure(figsize=(4,3)); plt.plot(zeta, d); plt.xlabel("ζ (m)"); plt.ylabel("δ Detuning"); plt.show()
+#############################################################################
 
-
+#Tableau Parameters##########################################################
 theta=1-1/np.sqrt(2)
 eta = 1-1/(2*theta)
 
@@ -120,8 +140,8 @@ def get_eff(a = a, tau=tau):
 
 def full_form(d=d, zeta_range=zeta_range, dzeta=dzeta, tau_range=tau_range, dtau=dtau,
            a0=a0, b0=b0, sigma=sigma, g=g, G=G, b_exp=b_exp,
-           phi_a_initial=phi_a_initial, phi_b_initial=phi_b_initial, times_to_save=times_to_save,
-              save_indices = save_indices, save_length = save_length, area = 1.0):
+           phi_a_initial=phi_a_initial, phi_b_initial=phi_b_initial, compressed_tau=compressed_tau,
+              compressed_tau_indices = compressed_tau_indices, Ncompressed_tau = Ncompressed_tau, area = 1.0):
     #_______________________________________________________________________________________________________________
     #_______________________________________________________________________________________________________________
     #SETUP__________________________________________________________________________________________________________
@@ -134,11 +154,11 @@ def full_form(d=d, zeta_range=zeta_range, dzeta=dzeta, tau_range=tau_range, dtau
     #_________________________________________________________________________________________________________________
     #_________________________________________________________________________________________________________________
     #ICs/BCs__________________________________________________________________________________________________________
-    a = np.empty((save_length, Nzeta), dtype=complex)
-    a[0,:] = a0
-    b = np.empty((save_length, Nzeta), dtype=complex)
-    b[0,:] = b0 * np.exp(-np.abs(zeta/sigma)**b_exp)
-    f = np.empty((save_length, Nzeta), dtype=complex)
+    a = np.empty((Ncompressed_tau, Nzeta), dtype=complex)
+    a[0,:] = a0 * np.exp(1j*phi_a_initial)
+    b = np.empty((Ncompressed_tau, Nzeta), dtype=complex)
+    b[0,:] = b0 * np.exp(-np.abs(zeta/sigma)**b_exp) * np.exp(1j*phi_b_initial)
+    f = np.empty((Ncompressed_tau, Nzeta), dtype=complex)
     f[0,:] = 0
     #_______________________________________________________________________________________________________________
     #_______________________________________________________________________________________________________________
@@ -149,7 +169,7 @@ def full_form(d=d, zeta_range=zeta_range, dzeta=dzeta, tau_range=tau_range, dtau
         f_sub = GammaB/2 * g * V[:Nzeta] * np.conj(V[Nzeta:2*Nzeta])
         return np.concatenate((a_sub, b_sub, f_sub))
     def BC(V):
-        V[0] = a0 #undepleted pump
+        V[0] = a0 * np.exp(1j*phi_a_initial) #undepleted pump
         V[2*Nzeta] = 0 #no acoustic
         return V
     #Construct L Matrix______________________________________________________________________________________________
@@ -191,7 +211,7 @@ def full_form(d=d, zeta_range=zeta_range, dzeta=dzeta, tau_range=tau_range, dtau
                 eps_ac*trap(np.abs(V[2*Nzeta:3*Nzeta])**2))
     def edge_power(V):                                 # W: pump entering at left, leaving at right = (2c/n) u A
         return v_pump*eps_light*np.abs(V[0])**2, v_pump*eps_light*np.abs(V[Nzeta-1])**2
-    rec = np.empty((save_length, 5))                   # per saved time: pump_grid, seed_grid, ac_grid, pump_in, pump_out
+    rec = np.empty((Ncompressed_tau, 5))                  # per saved time: pump_grid, seed_grid, ac_grid, pump_in, pump_out
     #FWHM of seed intensity |b|^2 (in zeta; identical to lab-z FWHM since z = zeta - c*tau/n is a shift)______________
     def _fwhm(x, y):
         if y.size < 2:
@@ -211,7 +231,7 @@ def full_form(d=d, zeta_range=zeta_range, dzeta=dzeta, tau_range=tau_range, dtau
         j = ipk + 1 + hi[0]
         xhi = x[j-1] + (half - y[j-1]) * (x[j] - x[j-1]) / (y[j] - y[j-1])
         return float(xhi - xlo)
-    fwhm = np.empty(save_length)
+    fwhm = np.empty(Ncompressed_tau)
     #________________________________________________________________________________________________________________
     #________________________________________________________________________________________________________________
     #Integration_____________________________________________________________________________________________________
@@ -235,7 +255,7 @@ def full_form(d=d, zeta_range=zeta_range, dzeta=dzeta, tau_range=tau_range, dtau
         pump_in_cum  += 0.5*dtau*(P_in_prev + P_in)     # trapezoid in tau
         pump_out_cum += 0.5*dtau*(P_out_prev + P_out)
         P_in_prev, P_out_prev = P_in, P_out
-        if next_save <save_length and j+1 == save_indices[next_save]:
+        if next_save <Ncompressed_tau and j+1 == compressed_tau_indices[next_save]:
             a[next_save,:] = V0[:Nzeta]; b[next_save,:] = V0[Nzeta:2*Nzeta]; f[next_save,:] = V0[2*Nzeta:3*Nzeta]
             rec[next_save] = (*grid_energy(V0), pump_in_cum, pump_out_cum)
             fwhm[next_save] = _fwhm(zeta, np.abs(b[next_save,:])**2)
@@ -271,7 +291,7 @@ def full_form(d=d, zeta_range=zeta_range, dzeta=dzeta, tau_range=tau_range, dtau
 
 sigmas       = [0.5,0.6]
 b_0_initials = [1]
-DETUNING = np.zeros_like(zeta)
+DETUNING = d    # detuning grid from the setup cell
 
 runs = {}   # key: (b0, sigma) -> dict of arrays
 for b0 in b_0_initials:
@@ -312,8 +332,8 @@ ac_norm    = 1000.0                                  # J/m^3 -> mJ/m^3
 # ---------------- grid ----------------
 colors   = [COLORS[k] if k < len(COLORS) else plt.cm.tab10(k % 10)
             for k in range(len(TIMES))]
-t_idxs   = [np.argmin(np.abs(times_to_save - T)) for T in TIMES]
-t_actual = [times_to_save[i] for i in t_idxs]
+t_idxs   = [np.argmin(np.abs(compressed_tau - T)) for T in TIMES]
+t_actual = [compressed_tau[i] for i in t_idxs]
 t_idx    = t_idxs[ANNOT_IDX]            # used by pick() and the annotation
 pick     = lambda q: np.asarray(q)[t_idx] if np.ndim(q) else q
 i_target = np.argmin(np.abs(zeta - TARGET))

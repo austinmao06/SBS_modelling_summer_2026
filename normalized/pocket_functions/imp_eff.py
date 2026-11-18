@@ -5,8 +5,8 @@ When seed >> pump, this is a good estimate
 Returns efficiency at each time
 """
 def get_eff(a = a, tau=tau):
-    a_in  = a[:, 0]**2            # pump entering the domain
-    a_out = a[:, -1]**2           # pump leaving the domain (depleted)
+    a_in  = np.abs(a[:, 0])**2            # pump entering the domain
+    a_out = np.abs(a[:, -1])**2           # pump leaving the domain (depleted)
     cumtrap = lambda y: np.concatenate(([0.0], np.cumsum(0.5*(y[1:]+y[:-1])*np.diff(tau))))
     supplied = cumtrap(a_in)
     absorbed = cumtrap(a_in - a_out)

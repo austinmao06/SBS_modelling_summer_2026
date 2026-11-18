@@ -1,6 +1,8 @@
-#Computing and mounting the necessary constants------------------------------------------------------------
+#gas parameters
 import numpy as np
 import matplotlib.pyplot as plt
+from scipy.linalg import solve_banded
+from scipy.sparse import dia_array
 
 GammaB = 2.0974e9      ###             ###                          #Hz. Brillouin Linewidth of Kr gas
 OmegaB = 1.5075e9                ###            ###                 #Hz. Frequency of Brillouin Shift.
@@ -28,26 +30,20 @@ wNorm = c_light * kNorm/n          ###             ###           #rad/s. Normali
 g = gamma_e * KB * I0 / (2 *GammaB*c_light*c_sound*rho_0*rho_bar) #rad. gain coefficient
 #I_0 = c_light*ep_0*E0**2
 G = GammaB / (2 * wNorm)                                            #1/rad. Normalized damping coefficient.
-
-#Set Detuning
-
 dlambda = 1e-12 ####                                           # for detuning laser wavelength diff
-Nlinewidths = 1.5####                                            #how many G_b from f_B is Omega
+Nlinewidths = 1####                                            #how many G_b from f_B is Omega
 #Omega = c_light/(lambdaL**2) * dlambda                         #Hz. Translated frequency difference from dlambda
-Omega = OmegaB + Nlinewidths *GammaB                            #Hz. Translated frequency difference from dlambda
+Omega = OmegaB + Nlinewidths *GammaB                            #Hz. Translated frequency difference from linewidths
 d = (Omega**2 - OmegaB**2)/(GammaB*Omega)                         #d from physical parameters
-#d = 2                                                         #d from raw
 
-print(f"c_light = {c_light/1e8}*10^8m/s")
-print(f"c_sound = {c_sound}m/s")
-print(f"g = {g}")
-print(f"G = {G}")
-print(f"w_laser = {wL/1e15}*10^15Hz")
-print(f"wNorm = {wNorm}Hz")
-print(f"k = {kNorm}")
-print(f"w_B = {wB}")
-print(f"d = {d}")
-#Natural Parameters of detuning ------------------------------------------------------------------------------------------
+print(f"c_light = {round(c_light/1e8,1)}*10^8m/s")
+print(f"c_sound = {round(c_sound,1)}m/s")
+print(f"g = {round(g,2)}")
+print(f"G = {round(G,2)}")
+print(f"k = {round(kNorm,4)}")
+print(f"d = {round(d,3)}")
+
+#natural parameters of detuning
 true_beat = (GammaB*d + np.sqrt(GammaB**2 * d**2 + 4*OmegaB**2))/2
 dlambda = lambdaL**2 / c_light * true_beat
 Nlinewidths = (true_beat - OmegaB)/GammaB
@@ -55,113 +51,57 @@ Nlinewidths = (true_beat - OmegaB)/GammaB
 print(f"Omega = {true_beat/1e9} GHz")
 print(f"Dlambda = {round(dlambda*1e12,2)} pm")
 print(f"Omega = {OmegaB} + {Nlinewidths} GammaB")
-#Setup------------------------------------------------------------------------------------------
+
+#setup
+#############################################################################
+
+#BASE SETUP##################################################################
 dzeta = 0.01                       # zeta resolution (m)
 dtau = 0.8 * dzeta / c_light       # CFL-style: 0.8 * (dzeta / c). tau is TRUE time (s); c/n≈c since n≈1
+
 tau_range = [0, 130e-9]
 zeta_range = [-20, 5]
+
 tau = np.arange(tau_range[0], tau_range[1], dtau)
 zeta = np.arange(zeta_range[0], zeta_range[1], dzeta)
+
 Ntau = len(tau)
 Nzeta = len(zeta)
 
-t_true = tau                                   # physical time per tau index (s)
+t_true = tau                                        # physical time per tau index (s)
 z_true = (zeta[None, :] - c_light*tau[:, None]/n)   # shape (Ntau, Nzeta), lab position (m)
+#############################################################################
 
+#Longitudinal Pulse Parameters ##############################################
 a0 = 1
 b0 = 1
-sigma = 1.5   # chosen so pulse_duration(t=0) ≈ 0.3 m (lab-frame length metric)
-phi_a_initial = 0
-phi_b_initial = 0
+b_exp = 1
+sigma = 0.2164 #seed longitudinal gaussian width
+phi_a_initial = 0 #initial pump phase
+phi_b_initial = 0 #initial seed phase
+#############################################################################
 
-#Set piecewise (or other) detuning across zeta------------------------------------------------
-d = np.ones_like(zeta)
-d[:np.argmin(np.abs(zeta + 3.5))] = 0
-Omega = (GammaB*d + np.sqrt(GammaB**2 * d**2 + 4*OmegaB**2))/2
+#Detuning Grid (chirp)#######################################################
+#d = 0 for zeta < 0, linear ramp d = 5*zeta on [0, 0.2) m, d = 1 for zeta >= 0.2 m
+i_ramp_start = np.argmin(np.abs(zeta))
+i_ramp_end   = np.argmin(np.abs(zeta - 0.2))
+d = np.zeros_like(zeta) #zeta-dependent detuning factor
+d[i_ramp_start:i_ramp_end] = 5*zeta[i_ramp_start:i_ramp_end]
+d[i_ramp_end:] = 1
+plt.figure(figsize=(4,3)); plt.plot(zeta, d); plt.xlabel("ζ (m)"); plt.ylabel("δ Detuning"); plt.show()
+#############################################################################
 
-
-#Sample plot detuning and Omega across zeta alongside seed------------------------------------------------
-import matplotlib.pyplot as plt
-
-fig, ax1 = plt.subplots()
-ax2 = ax1.twinx()
-ax3 = ax1.twinx()
-
-line1 = ax1.plot(zeta, Omega/1e9, label="Beat Frequency")
-ax1.set_xlabel("Zeta (m)")
-ax1.set_ylabel("Omega (GHz)")
-
-line2 = ax2.plot(zeta, d, linestyle="--", color="red", label="Detuning Factor",  zorder=10)
-ax2.set_ylabel("Detuning Factor")
-
-line3 = ax3.plot(zeta, (b0 * np.exp(-np.abs(zeta/sigma)**2))**2, linestyle="--", color="black", label="Envelope")
-ax3.set_ylabel("Envelope (Initial Intensity)")
-ax3.spines['right'].set_position(('outward', 55))   # offset the 3rd axis
-
-lines = line1 + line2 + line3
-labels = [l.get_label() for l in lines]
-
-ax1.legend(lines, labels, loc='upper right')
-
-#ax1.set_xlim(-5,2)
-#ax2.set_ylim(-5,5)
-plt.title("Chirp Visualization")
-plt.show()
-
-#help functions:
-b = 1 #placeholder
-a=1
-def FWHM(z_true=z_true, b=b, tau=tau):
-    def _fwhm(x, y):
-        if y.size < 2:
-            return np.nan
-        ipk  = int(np.argmax(y))
-        half = 0.5 * y[ipk]
-        if not np.isfinite(half) or half <= 0:
-            return np.nan
-
-        # left crossing: last node before the peak that sits below half max
-        lo = np.flatnonzero(y[:ipk] < half)
-        if lo.size == 0:
-            return np.nan                      # peak not resolved on the left
-        i = lo[-1]
-        xlo = x[i] + (half - y[i]) * (x[i+1] - x[i]) / (y[i+1] - y[i])
-
-        # right crossing: first node after the peak that sits below half max
-        hi = np.flatnonzero(y[ipk+1:] < half)
-        if hi.size == 0:
-            return np.nan                      # peak not resolved on the right
-        j = ipk + 1 + hi[0]
-        xhi = x[j-1] + (half - y[j-1]) * (x[j] - x[j-1]) / (y[j] - y[j-1])
-
-        return float(xhi - xlo)
-
-    return np.array([_fwhm(z_true[ti, :], np.abs(b[ti, :])**2) for ti in range(b.shape[0])])
-
-#implicit efficiency is a good approximation for later times when b>>a (explicit efficiency is unused because integration overestimates seed growth)
-
-def get_eff(a = a, tau=tau):
-    a_in  = np.abs(a[:, 0])**2
-    a_out = np.abs(a[:, -1])**2
-    cumtrap = lambda y: np.concatenate(([0.0], np.cumsum(0.5*(y[1:]+y[:-1])*np.diff(tau))))
-    supplied = cumtrap(a_in)
-    absorbed = cumtrap(a_in - a_out)
-    eta = np.divide(absorbed, supplied, out=np.full_like(tau, np.nan, dtype=float), where=(supplied > 0))
-    eta[0] = np.nan
-    return eta
-
-#Integrator Function--------------------------------------------------------------------------------
+#integrator
 def detune(d=d, zeta_range=zeta_range, dzeta=dzeta, tau_range=tau_range, dtau=dtau,
            a0=a0, b0=b0, sigma=sigma, g=g, G=G, b_exp=b_exp,
            phi_a_initial=phi_a_initial, phi_b_initial=phi_b_initial):
-    import numpy as np
-    import matplotlib.pyplot as plt
-    #PARAMS####################################################
-    a0 = a0
-    g = g
-    sigma = sigma
-    b0 = b0
-    ########################################################
+    """
+    Returns: a, b, f, phi_a, phi_b, phi_f, fwhm, eff   (fwhm and eff: one value per tau index)
+    fwhm : FWHM (m) of the seed intensity |b|^2 in zeta (identical to lab-z FWHM since z = zeta - c*tau/n is a shift)
+    eff  : implicit efficiency = (time-integrated pump absorbed) / (time-integrated pump supplied).
+           A good approximation at later times when b >> a (explicit efficiency is unused because
+           integration overestimates seed growth). eff[0] = nan.
+    """
     tau = np.arange(tau_range[0], tau_range[1], dtau)
     zeta = np.arange(zeta_range[0], zeta_range[1], dzeta)
     Ntau = len(tau)
@@ -182,12 +122,41 @@ def detune(d=d, zeta_range=zeta_range, dzeta=dzeta, tau_range=tau_range, dtau=dt
     b0_profile = b0 * np.exp(-np.abs(zeta/sigma)**b_exp)
     b[0,:] = b0_profile * np.exp(1j*phi_b_initial)
     f[:,0] = 0                                          # far-left column: no incoming acoustic
-             
+
+    #####################FWHM + EFFICIENCY SETUP#########
+    #FWHM of seed intensity |b|^2 in zeta
+    def _fwhm(x, y):
+        if y.size < 2:
+            return np.nan
+        ipk  = int(np.argmax(y))
+        half = 0.5 * y[ipk]
+        if not np.isfinite(half) or half <= 0:
+            return np.nan
+        lo = np.flatnonzero(y[:ipk] < half)            # left crossing: last node before peak below half max
+        if lo.size == 0:
+            return np.nan                              # peak not resolved on the left
+        i = lo[-1]
+        xlo = x[i] + (half - y[i]) * (x[i+1] - x[i]) / (y[i+1] - y[i])
+        hi = np.flatnonzero(y[ipk+1:] < half)          # right crossing: first node after peak below half max
+        if hi.size == 0:
+            return np.nan                              # peak not resolved on the right
+        j = ipk + 1 + hi[0]
+        xhi = x[j-1] + (half - y[j-1]) * (x[j] - x[j-1]) / (y[j] - y[j-1])
+        return float(xhi - xlo)
+    fwhm = np.empty(Ntau)
+    #implicit efficiency: running trapezoid (in tau) of the pump entering at zeta[0] and leaving at zeta[-1]
+    eff = np.full(Ntau, np.nan)
+    supplied = 0.0; absorbed = 0.0
+
+    #####################INTEGRATION#####################
     for j in range(Nzeta - 1):
         a[0,j+1] = a[0,j] + dzeta * Ka * (-b[0,j] * f[0,j])
         f[0,j+1] = (g * a[0,j+1] * np.conj(b[0,j+1]) + kappa/dzeta * f[0,j]) / (1 + kappa/dzeta - 1j*d[j+1])
 
     b[1,:] = b[0,:] + dtau * Kb * (a[0,:] * np.conj(f[0,:]))
+
+    fwhm[0] = _fwhm(zeta, np.abs(b[0,:])**2)
+    a_in_prev = np.abs(a[0,0])**2; a_out_prev = np.abs(a[0,-1])**2
 
     for i in range(Ntau - 1):
         for j in range(Nzeta - 1):
@@ -214,6 +183,16 @@ def detune(d=d, zeta_range=zeta_range, dzeta=dzeta, tau_range=tau_range, dtau=dt
                 a[i+1,j+1] = aa + (da1 + 2*da2 + 2*da3 + da4)/6
                 f[i+1,j+1] = ff + (df1 + 2*df2 + 2*df3 + df4)/6
 
+        #diagnostics at tau index i+1 (row i+1 of a and b is now complete)
+        fwhm[i+1] = _fwhm(zeta, np.abs(b[i+1,:])**2)
+        a_in = np.abs(a[i+1,0])**2; a_out = np.abs(a[i+1,-1])**2
+        step = tau[i+1] - tau[i]
+        supplied += 0.5*step*(a_in_prev + a_in)                      # trapezoid in tau
+        absorbed += 0.5*step*((a_in_prev - a_out_prev) + (a_in - a_out))
+        a_in_prev, a_out_prev = a_in, a_out
+        if supplied > 0:
+            eff[i+1] = absorbed / supplied
+
         if i+2 < Ntau:
             b[i+2,:] = b[i+1,:] + dtau * Kb * (a[i+1,:] * np.conj(f[i+1,:]))
 
@@ -230,23 +209,21 @@ def detune(d=d, zeta_range=zeta_range, dzeta=dzeta, tau_range=tau_range, dtau=dt
     if len(blown[0]) > 0:
         print(f"First blowup at tau index {blown[0].min()}, tau = {tau[blown[0].min()]:.2f}")
 
-    return a, b, f, phi_a, phi_b, phi_f
+    return a, b, f, phi_a, phi_b, phi_f, fwhm, eff
 
-#Example Usage
-
-sigmas       = [0.5,0.6,0.7,0.8]
+#example usage
+sigmas       = [0.5,0.6]
 b_0_initials = [1]
-DETUNING     = np.zeros_like(zeta)
+DETUNING     = d    # chirped detuning grid from the setup cell
 
 runs = {}   # key: (b0, sigma) -> dict of arrays
 for b0 in b_0_initials:
     for s in sigmas:
-        a, b, f, *_ = detune(d=DETUNING, sigma=s, b0=b0)   # CHECK kwarg name
-        runs[(b0, s)] = dict(a=a, b=b, f=f, fwhm=FWHM(b=b))
+        a, b, f, phi_a, phi_b, phi_f, fwhm, eff = detune(d=DETUNING, sigma=s, b0=b0)
+        runs[(b0, s)] = dict(a=a, b=b, f=f, fwhm=fwhm, eff=eff)
         print(f"done  b0 = {b0:<5}  sigma = {s}")
 
-#Plot
-
+#plot
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
@@ -344,6 +321,7 @@ for r, b0 in enumerate(b_0_initials):
             ax.text(0.03, 0.95,
                     f"peak = {I_ann.max():.3g} GW/cm$^2$\n"
                     f"FWHM = {pick(run['fwhm']):.3g} {FWHM_UNIT}\n"
+                    f"eff = {pick(run['eff']):.3g}\n"
                     f"TARGET = {I_ann[i_target]:.3g} GW/cm$^2$",
                     transform=ax.transAxes, ha="left", va="top", fontsize=8, zorder=5,
                     bbox=dict(boxstyle="round", fc="white", ec="0.7", alpha=0.85))

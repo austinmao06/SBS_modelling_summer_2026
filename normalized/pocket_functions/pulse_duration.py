@@ -14,9 +14,9 @@ def pulse_duration(z_true=z_true, b=b, tau=tau, frac=0.8):
         length = zhi - x
         m = (x <= zpk) & (zhi >= zpk) & np.isfinite(zhi) & (length > 0)   # window must contain the peak
         return float(np.min(length[m])) if np.any(m) else np.nan
-    return np.array([_dur(z_true[ti, :], b[ti, :]**2) for ti in range(len(tau))])
+    return np.array([_dur(z_true[ti, :], np.abs(b[ti, :])**2) for ti in range(len(tau))])
 #Example usage
 dur = pulse_duration()
-plt.plot(time_true*1e9, pulse_duration)
+plt.plot(t_true*1e9, dur)
 plt.xlabel("Time Elapsed (ns)")
 plt.ylabel("Pulse Duration (m)")

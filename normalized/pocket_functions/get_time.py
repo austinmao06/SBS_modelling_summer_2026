@@ -2,7 +2,7 @@
 leading edge is defined as the point on the front side with intensity equal to initial peak intensity
 """
 
-def get_time(dist_true, z_true = z_true, intensity = b**2, t_true = t_true):
+def get_time(dist_true, z_true = z_true, intensity = np.abs(b)**2, t_true = t_true):
     """
     takes in dist_true...
     returns true time at which the seed's front edge has propagated dist_true
