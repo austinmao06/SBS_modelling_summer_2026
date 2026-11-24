@@ -398,3 +398,123 @@ if SHOW_ANNOT:
 fig.suptitle(title, fontsize=13)
 fig.tight_layout(rect=[0, 0, 1, 0.96])
 plt.show()
+
+#alternatively, single plotting
+
+a, b, f, fwhm, total_E, (E_in, E_out), eff, *_ = full_form(d = d)
+
+#plotting
+
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
+
+# ---------------- toggles ----------------
+SHOW_SEED   = True
+SHOW_PUMP   = False
+SHOW_AC     = False
+SHOW_TARGET = True
+SHOW_ANNOT  = True
+SHOW_LEGEND = True
+USE_XLIM    = True
+
+# ---------------- settings ----------------
+TIMES      = [400e-9, 600e-9,800e-9]               # snapshot times (s) -- add as many as you like
+COLORS     = ["red", "green", "blue"]   # used in order; extra snapshots fall back to tab10
+ANNOT_IDX  = -1                     # which snapshot the annotation reports (-1 = last)
+XLIM       = (-2, 0.75)
+FWHM_UNIT  = "m"
+TARGET     = -1
+PARAMS = {r"$g$": g, r"$\Gamma_B$": GammaB,
+          r"$n$": n, r"$k_{norm}$": kNorm}
+
+# ---------------- unit conversions ----------------
+field_norm = (I0/2*1e-10) / 1000.0                   # |b|^2 -> MW/cm^2 -> GW/cm^2
+u_ac       = c_sound**2 * rho_0 * rho_bar**2 / 2.0   # |f|^2 -> J/m^3
+ac_norm    = 1000.0                                  # J/m^3 -> mJ/m^3
+
+# ---------------- setup ----------------
+colors   = [COLORS[k] if k < len(COLORS) else plt.cm.tab10(k % 10)
+            for k in range(len(TIMES))]
+t_idxs   = [np.argmin(np.abs(times_to_save - T)) for T in TIMES]
+t_actual = [times_to_save[i] for i in t_idxs]
+t_idx    = t_idxs[ANNOT_IDX]
+pick     = lambda q: np.asarray(q)[t_idx] if np.ndim(q) else q
+i_target = np.argmin(np.abs(zeta - TARGET))
+
+# uses globals: a, b, f (shape (n_saves, Nzeta)), fwhm (n_saves,), zeta, times_to_save
+fig, ax = plt.subplots(figsize=(7.5, 5.5))
+
+I_snaps = [np.abs(b[ti, :])**2 * field_norm for ti in t_idxs]
+
+# ---- seed ----
+if SHOW_SEED:
+    for I_k, col in zip(I_snaps, colors):
+        ax.plot(zeta, I_k, color=col, linestyle="-")
+
+if SHOW_TARGET:
+    ax.axvline(TARGET, color="black", linestyle="--", alpha=0.5)
+
+# ---- pump on its own axis ----
+if SHOW_PUMP:
+    ax_pump = ax.twinx()
+    for ti, col in zip(t_idxs, colors):
+        ax_pump.plot(zeta, np.abs(a[ti, :])**2 * field_norm,
+                     color=col, linestyle="--", alpha=0.8)
+    ax_pump.set_ylim(top=3*max(np.max(np.abs(a[ti, :])**2 * field_norm) for ti in t_idxs))
+    ax_pump.set_ylabel(r"Pump (GW/cm$^2$)")
+
+# ---- acoustic energy density on its own axis ----
+if SHOW_AC:
+    ax_ac = ax.twinx()
+    if SHOW_PUMP:                          # keep clear of the pump axis
+        ax_ac.spines['right'].set_position(('outward', 55))
+    for ti, col in zip(t_idxs, colors):
+        ax_ac.plot(zeta, np.abs(f[ti, :])**2 * u_ac * ac_norm,
+                   color=col, linestyle=":", alpha=0.8)
+    ax_ac.set_ylabel(r"Acoustic (mJ/m$^3$)")
+
+# ---- annotation box ----
+if SHOW_ANNOT:
+    I_ann = I_snaps[ANNOT_IDX]
+    ax.text(0.03, 0.95,
+            f"peak = {I_ann.max():.3g} GW/cm$^2$\n"
+            f"FWHM = {pick(fwhm):.3g} {FWHM_UNIT}\n"
+            f"TARGET = {I_ann[i_target]:.3g} GW/cm$^2$",
+            transform=ax.transAxes, ha="left", va="top", fontsize=8, zorder=5,
+            bbox=dict(boxstyle="round", fc="white", ec="0.7", alpha=0.85))
+
+# snapshot-time key
+for k, (t, col) in enumerate(zip(t_actual, colors)):
+    ax.text(0.97, 0.95 - 0.07 * k, f"t = {t*1e9:.0f} ns",
+            transform=ax.transAxes, ha="right", va="top",
+            fontsize=8, color=col, fontweight="bold", zorder=5)
+
+ax.set_xlabel(r"$\zeta$ (m)")
+if SHOW_SEED:
+    ax.set_ylabel(r"Seed (GW/cm$^2$)")
+else:
+    ax.tick_params(labelleft=False)
+ax.grid(alpha=0.3)
+
+if USE_XLIM:
+    ax.set_xlim(*XLIM)
+
+if SHOW_LEGEND:
+    handles = []
+    if SHOW_SEED:
+        handles.append(Line2D([0], [0], color="gray", linestyle="-",  label="Seed"))
+    if SHOW_PUMP:
+        handles.append(Line2D([0], [0], color="gray", linestyle="--", label="Pump"))
+    if SHOW_AC:
+        handles.append(Line2D([0], [0], color="gray", linestyle=":",  label="Acoustic"))
+    if handles:
+        ax.legend(handles=handles, loc="lower right", fontsize=8)
+
+title = ", ".join(f"{k} = {v:.7g}" for k, v in PARAMS.items())
+if SHOW_ANNOT:
+    title += f"   |   annotations at t = {t_actual[ANNOT_IDX]*1e9:.1f} ns"
+ax.set_title(title, fontsize=11)
+fig.tight_layout()
+plt.show()
+
