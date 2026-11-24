@@ -175,29 +175,32 @@ def full_form(d=d, zeta_range=zeta_range, dzeta=dzeta, tau_range=tau_range, dtau
     #Construct L Matrix______________________________________________________________________________________________
     #________________________________________________________________________________________________________________
     #________________________________________________________________________________________________________________
-    aL1 = np.ones(Nzeta) * 2*c_light/(n*2*dzeta)
-    aL1[0] = 0; aL1[-1] = 2*c_light/(n*dzeta)
-    aL2 = np.zeros(Nzeta)
-    aL2[0] = 0; aL2[-1] = -2*c_light/(n*dzeta)
-    aL3 = np.ones(Nzeta) * -2*c_light/(n*2*dzeta)
-    aL3[0] = 0; aL3[-1] = 0
+    #zeta-transport: second-order upwind, -v dV/dzeta ~ -v (3V_i - 4V_{i-1} + V_{i-2}) / (2 dzeta)
+    #(central differences give zero slope on a 2-cell checkerboard, so grid-scale seed structure gets full SBS gain)
+    #row 0  : inflow BC row (zero; BC() sets a = a0, f = 0)
+    #row 1  : first-order upwind -v (V_1 - V_0) / dzeta  (no V_{-1} for the 2nd-order stencil)
+    #rows 2+: second-order upwind, including the outflow row (upwind needs no downstream point)
+    #D0 = coefficient of V_i, D1 = of V_{i-1}, D2 = of V_{i-2}
+    def upwind_bands(v, extra):
+        D0 = np.full(Nzeta, -3*v/(2*dzeta), dtype=complex) + extra
+        D1 = np.full(Nzeta,  4*v/(2*dzeta), dtype=complex)
+        D2 = np.full(Nzeta,   -v/(2*dzeta), dtype=complex)
+        D0[1] = -v/dzeta + extra[1]; D1[1] = v/dzeta; D2[1] = 0     # D2[1] = 0 also keeps the stencil inside each block
+        D0[0] = 0; D1[0] = 0; D2[0] = 0
+        return D0, D1, D2
 
-    bL1 = np.zeros(Nzeta); bL2 = np.zeros(Nzeta); bL3 = np.zeros(Nzeta)
+    zero = np.zeros(Nzeta, dtype=complex)
+    aD0, aD1, aD2 = upwind_bands(2*c_light/n, zero)                         # pump: v = 2c/n
+    bD0, bD1, bD2 = zero, zero, zero                                        # seed: no zeta-transport
+    fD0, fD1, fD2 = upwind_bands(c_light/n, -GammaB * (1-(1j)*d)/2)         # acoustic: v = c/n, plus damping/detuning
 
-    fL1 = np.ones(Nzeta) *c_light/(n*2*dzeta)
-    fL1[0] = 0; fL1[-1] = c_light/(n*dzeta)
-    fL2 = np.ones(Nzeta) * -GammaB * (1-(1j)*d)/2
-    fL2[0] = 0; fL2[-1] = -c_light/(n*dzeta) - GammaB * (1-(1j)*d[-1])/2
-    fL3 = np.ones(Nzeta) * -c_light/(n*2*dzeta)
-    fL3[0] = 0; fL3[-1] = 0
-
-    L1 = np.concatenate((aL1, bL1, fL1)); L2 = np.concatenate((aL2, bL2, fL2)); L3 = np.concatenate((aL3, bL3, fL3))
-    LM = np.zeros((3, 3*Nzeta), dtype = complex)
-    LM[0,1:] = L3[:-1]; LM[1,:] = L2; LM[2,:-1] = L1[1:]
+    D0 = np.concatenate((aD0, bD0, fD0)); D1 = np.concatenate((aD1, bD1, fD1)); D2 = np.concatenate((aD2, bD2, fD2))
+    LM = np.zeros((4, 3*Nzeta), dtype = complex)                            # banded storage: rows = upper, main, lower 1, lower 2
+    LM[1,:] = D0; LM[2,:-1] = D1[1:]; LM[3,:-2] = D2[2:]
 
     solve_M = -dtau*theta*LM
     solve_M[1, :] = solve_M[1, :] + 1
-    L = dia_array((LM, [1,0,-1]), shape=(3*Nzeta, 3*Nzeta))
+    L = dia_array((LM, [1,0,-1,-2]), shape=(3*Nzeta, 3*Nzeta))
     #________________________________________________________________________________________________________________
     #________________________________________________________________________________________________________________
     #Energy diagnostics setup (area in m^2)__________________________________________________________________________
@@ -245,11 +248,11 @@ def full_form(d=d, zeta_range=zeta_range, dzeta=dzeta, tau_range=tau_range, dtau
     for j in range(Ntau-1):
         N1 = N(V0)
         RS = BC(V0 + dtau * Tab_N[1,0]*N1)
-        V1 = solve_banded((1,1),solve_M, RS)
+        V1 = solve_banded((2,1), solve_M, RS)
         N2 = N(V1)
         LV1 = L@V1
         RS = BC(V0 + dtau * (Tab_L[2,1]*LV1 + Tab_N[2,0]*N1 + Tab_N[2,1]*N2))
-        V2 = solve_banded((1,1), solve_M, RS)
+        V2 = solve_banded((2,1), solve_M, RS)
         V0 = V2
         P_in, P_out = edge_power(V0)
         pump_in_cum  += 0.5*dtau*(P_in_prev + P_in)     # trapezoid in tau

@@ -112,49 +112,49 @@ $$\frac{\partial \vec{f}}{\partial \tau} = \frac{\Gamma_B}{2}g\vec{a}\odot\vec{b
 
 # The Linear Operator $L$
 
-For $L(\vec{V})$, generally (centered differences):
+For $L(\vec{V})$, generally (second-order upwind differences, justified by downstream physical causality):
 
-$$\frac{\partial a}{\partial \tau} = -\frac{2c}{n}\frac{\partial a}{\partial \zeta} = -\frac{2c}{n}\left(\frac{a_{\zeta+d\zeta} - a_{\zeta-d\zeta}}{2d\zeta}\right)$$
+$$\frac{\partial a}{\partial \tau} = -\frac{2c}{n}\frac{\partial a}{\partial \zeta} = -\frac{2c}{n}\left(\frac{3a_{\zeta} - 4a_{\zeta-d\zeta} + a_{\zeta-2d\zeta}}{2d\zeta}\right)$$
 
 $$\frac{\partial b}{\partial \tau} = 0$$
 
-$$\frac{\partial f}{\partial \tau} = -\frac{c}{n}\frac{\partial f}{\partial \zeta} - \frac{\Gamma_B}{2}(1-i\delta)f = -\frac{c}{n}\left(\frac{f_{\zeta+d\zeta} - f_{\zeta-d\zeta}}{2d\zeta}\right) - \frac{\Gamma_B}{2}(1-i\delta)f_\zeta$$
+$$\frac{\partial f}{\partial \tau} = -\frac{c}{n}\frac{\partial f}{\partial \zeta} - \frac{\Gamma_B}{2}(1-i\delta)f = -\frac{c}{n}\left(\frac{3f_{\zeta} - 4f_{\zeta-d\zeta} + f_{\zeta-2d\zeta}}{2d\zeta}\right) - \frac{\Gamma_B}{2}(1-i\delta)f_\zeta$$
 
 Or:
 
-$$\frac{\partial a_\zeta}{\partial \tau} = L(a) = \underbrace{\frac{2c}{n(2d\zeta)}}_{{}_aL_1}a_{\zeta-d\zeta} + \underbrace{0}_{{}_aL_2}a_\zeta + \underbrace{\left(-\frac{2c}{n(2d\zeta)}\right)}_{{}_aL_3}a_{\zeta+d\zeta}$$
+$$\frac{\partial a_\zeta}{\partial \tau} = L(a) = \underbrace{\left(-\frac{2c}{n(2d\zeta)}\right)}_{{}_aL_0}a_{\zeta-2d\zeta} + \underbrace{\frac{4\cdot 2c}{n(2d\zeta)}}_{{}_aL_1}a_{\zeta-d\zeta} + \underbrace{\left(-\frac{3\cdot 2c}{n(2d\zeta)}\right)}_{{}_aL_2}a_\zeta$$
 
 $$\frac{\partial b_\zeta}{\partial \tau} = 0 \text{ everywhere}, \qquad L(b) = 0$$
 
-$$\frac{\partial f_\zeta}{\partial \tau} = L(f) = \underbrace{\frac{c}{n(2d\zeta)}}_{{}_fL_1}f_{\zeta-d\zeta} + \underbrace{\left(-\frac{\Gamma_B}{2}(1-i\delta)\right)}_{{}_fL_2}f_\zeta + \underbrace{\left(-\frac{c}{n(2d\zeta)}\right)}_{{}_fL_3}f_{\zeta+d\zeta}$$
+$$\frac{\partial f_\zeta}{\partial \tau} = L(f) = \underbrace{\left(-\frac{c}{n(2d\zeta)}\right)}_{{}_fL_0}f_{\zeta-2d\zeta} + \underbrace{\frac{4c}{n(2d\zeta)}}_{{}_fL_1}f_{\zeta-d\zeta} + \underbrace{\left(-\frac{3c}{n(2d\zeta)} - \frac{\Gamma_B}{2}(1-i\delta)\right)}_{{}_fL_2}f_\zeta$$
 
-$L$ is block diagonal, with a tridiagonal block for each field (${}_aL_1, {}_bL_1, {}_fL_1$ on the sub-diagonal; ${}_aL_2, {}_bL_2, {}_fL_2$ on the diagonal; ${}_aL_3, {}_bL_3, {}_fL_3$ on the super-diagonal; ${}_bL_1 = {}_bL_2 = {}_bL_3 = 0$):
+$L$ is block diagonal, with a lower-banded block for each field (${}_aL_0, {}_bL_0, {}_fL_0$ on the second sub-diagonal; ${}_aL_1, {}_bL_1, {}_fL_1$ on the sub-diagonal; ${}_aL_2, {}_bL_2, {}_fL_2$ on the diagonal; nothing above the diagonal; ${}_bL_0 = {}_bL_1 = {}_bL_2 = 0$). The first two rows of each block are boundary rows (see below):
 
 $$L = \begin{pmatrix} L_a & 0 & 0 \cr 0 & L_b & 0 \cr 0 & 0 & L_f \end{pmatrix}$$
 
-$$L_a = \begin{pmatrix} {}_aL_2 & {}_aL_3 & & \cr {}_aL_1 & {}_aL_2 & {}_aL_3 & \cr & \ddots & \ddots & \ddots \cr & & {}_aL_1 & {}_aL_2 \end{pmatrix}$$
+$$L_a = \begin{pmatrix} 0 & & & & \cr {}_a\tilde{L}_1 & {}_a\tilde{L}_2 & & & \cr {}_aL_0 & {}_aL_1 & {}_aL_2 & & \cr & \ddots & \ddots & \ddots & \cr & & {}_aL_0 & {}_aL_1 & {}_aL_2 \end{pmatrix}$$
 
-$$L_b = \begin{pmatrix} {}_bL_2 & {}_bL_3 & & \cr {}_bL_1 & {}_bL_2 & {}_bL_3 & \cr & \ddots & \ddots & \ddots \cr & & {}_bL_1 & {}_bL_2 \end{pmatrix} = 0$$
+$$L_b = \begin{pmatrix} {}_bL_2 & & & & \cr {}_bL_1 & {}_bL_2 & & & \cr {}_bL_0 & {}_bL_1 & {}_bL_2 & & \cr & \ddots & \ddots & \ddots & \cr & & {}_bL_0 & {}_bL_1 & {}_bL_2 \end{pmatrix} = 0$$
 
-$$L_f = \begin{pmatrix} {}_fL_2 & {}_fL_3 & & \cr {}_fL_1 & {}_fL_2 & {}_fL_3 & \cr & \ddots & \ddots & \ddots \cr & & {}_fL_1 & {}_fL_2 \end{pmatrix}$$
+$$L_f = \begin{pmatrix} 0 & & & & \cr {}_f\tilde{L}_1 & {}_f\tilde{L}_2 & & & \cr {}_fL_0 & {}_fL_1 & {}_fL_2 & & \cr & \ddots & \ddots & \ddots & \cr & & {}_fL_0 & {}_fL_1 & {}_fL_2 \end{pmatrix}$$
+
+[In banded storage, $L$ has 2 sub-diagonals and 0 super-diagonals, so the implicit solves use `solve_banded((2,1), ...)`.]
 
 # Boundary Conditions
 
-**At the $+\infty$ boundary**, take (backward difference)
+**At the $+\infty$ boundary**, no special row is needed: the upwind stencil only uses points at $\zeta - d\zeta$ and $\zeta - 2d\zeta$, so the last row of the $a$ and $f$ blocks is the same as the interior rows.
 
-$$\frac{\partial a}{\partial \tau} = -\frac{2c}{n}\left(\frac{a_\zeta - a_{\zeta-d\zeta}}{d\zeta}\right) = \frac{2c}{nd\zeta}a_{\zeta-d\zeta} - \frac{2c}{nd\zeta}a_\zeta$$
+**At the second grid point $\zeta_1$**, the point $\zeta_1 - 2d\zeta$ does not exist, so this row uses the first-order upwind (backward) difference:
 
-$$\frac{\partial f}{\partial \tau} = -\frac{c}{n}\left(\frac{f_\zeta - f_{\zeta-d\zeta}}{d\zeta}\right) - \frac{\Gamma_B}{2}(1-i\delta)f_\zeta = \frac{c}{nd\zeta}f_{\zeta-d\zeta} - \left[\frac{c}{nd\zeta} + \frac{\Gamma_B}{2}(1-i\delta)\right]f_\zeta$$
+$$\frac{\partial a}{\partial \tau} = -\frac{2c}{n}\left(\frac{a_{\zeta_1} - a_{\zeta_0}}{d\zeta}\right) = \underbrace{\frac{2c}{nd\zeta}}_{{}_a\tilde{L}_1}a_{\zeta_0} + \underbrace{\left(-\frac{2c}{nd\zeta}\right)}_{{}_a\tilde{L}_2}a_{\zeta_1}$$
 
-[These replace the last row of the $a$ and $f$ blocks of $L$.]
+$$\frac{\partial f}{\partial \tau} = -\frac{c}{n}\left(\frac{f_{\zeta_1} - f_{\zeta_0}}{d\zeta}\right) - \frac{\Gamma_B}{2}(1-i\delta)f_{\zeta_1} = \underbrace{\frac{c}{nd\zeta}}_{{}_f\tilde{L}_1}f_{\zeta_0} + \underbrace{\left(-\frac{c}{nd\zeta} - \frac{\Gamma_B}{2}(1-i\delta)\right)}_{{}_f\tilde{L}_2}f_{\zeta_1}$$
 
 **At the $-\infty$ boundary**, we must enforce the BCs: undepleted pump, no acoustic. Furthermore, we can take the following: $(a,b,f)$ at $\zeta \to -\infty$ do not evolve by the couplings, because the effects generally flow towards $+\zeta$. Hence, we can set the diagonal entries to zero,
 
 $${}_aL_{2,\zeta_0} = {}_bL_{2,\zeta_0} = {}_fL_{2,\zeta_0} = 0$$
 
-[so the diagonal of $I - \Delta\tau\theta L$ becomes 1 in the operations], and likewise the off-diagonal entries in the first row of each block, so that each boundary row of $I - \Delta\tau\theta L$ is a pure identity row:
-
-$${}_aL_{1,\zeta_0} = {}_aL_{3,\zeta_0} = 0, \qquad {}_fL_{1,\zeta_0} = {}_fL_{3,\zeta_0} = 0$$
+[so the diagonal of $I - \Delta\tau\theta L$ becomes 1 in the operations]. The upwind stencil has no entries to the left of $\zeta_0$, so each boundary row of $I - \Delta\tau\theta L$ is then a pure identity row,
 
 while enforcing the boundary values (on the right-hand side of the implicit solves)
 
