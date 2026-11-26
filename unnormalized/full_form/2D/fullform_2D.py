@@ -480,40 +480,82 @@ plt.show()
 Plots Intensity at each radius of select zeta against propagation distance
 """
 
-field_norm = (I0/2*1e-10) / 1000.0                   # |b|^2 -> GW/cm^2 (same as before)
+# ---------------- toggles ----------------
+SHOW_NUMERIC  = True    # numerical waist (red line)
+SHOW_ANALYTIC = True    # analytical waist location (vertical dashed line)
+SHOW_CONTOUR  = True    # white contour lines on the heatmap
+SHOW_LEGEND   = True
+USE_YLIM      = True    # False -> every panel shows the full radius range
 
-zi = np.argmin(np.abs(compressed_zeta - 0))
-intensities = []
-for ti in range(len(compressed_tau)):
-    intensities.append(np.abs(b[ti, zi, :])**2)
-intensities = np.array(intensities).T * field_norm   # was: / 10
+# ---------------- settings ----------------
+ZETA       = 0                  # zeta slice (m) at which the intensity is taken
+RAD_MIN    = [0.0]              # radius axis lower limit (m); one stacked panel per entry
+RAD_MAX    = [0.4e-2]             # radius axis upper limit (m); must match RAD_MIN in length
+CMAP       = "inferno"
+N_CONTOURS = 6
+NUM_COLOR  = "red"
+ANA_COLOR  = "white"
 
-def numeric_waist(b=b):
-    zi = np.argmin(np.abs(compressed_zeta))
-    waist_rad = []
+# ---------------- unit conversions ----------------
+field_norm = (I0/2*1e-10) / 1000.0                   # |b|^2 -> GW/cm^2
+
+# ---------------- setup ----------------
+assert len(RAD_MIN) == len(RAD_MAX), "RAD_MIN and RAD_MAX must have the same length"
+
+zi   = np.argmin(np.abs(compressed_zeta - ZETA))
+dist = compressed_tau * c_light / n                  # propagation distance (m)
+
+# uses globals: b (shape (n_saves, Nzeta, Nrad)), compressed_*, I0, c_light, n, time_to_focus
+intensities = np.array([np.abs(b[ti, zi, :])**2 for ti in range(len(compressed_tau))]).T * field_norm
+# shape (Nrad, n_saves)
+
+def numeric_waist_fn(b, zi):
+    waist = []
     for ti in range(len(compressed_tau)):
-        I = np.abs(b[ti][zi, :])**2                                  # intensity (b is |b|)
-        den = np.trapezoid(I * compressed_rad, compressed_rad)
+        I   = np.abs(b[ti][zi, :])**2
+        den = np.trapezoid(I * compressed_rad,    compressed_rad)
         num = np.trapezoid(I * compressed_rad**3, compressed_rad)
-        waist_rad.append(np.sqrt(2 * num / den))               # sqrt(2*<r^2>)  <-- was the sqrt/threshold bug
-    waist_rad = np.array(waist_rad)
-    return waist_rad
-numeric_waist = numeric_waist()
+        waist.append(np.sqrt(2 * num / den))         # sqrt(2*<r^2>)
+    return np.array(waist)
 
+numeric_waist = numeric_waist_fn(b, zi)
+z_focus       = time_to_focus * c_light / n          # analytical waist location (m)
 
-plt.figure()
-dist = compressed_tau * c_light/n
-plt.imshow(intensities, aspect="auto", origin = "lower", extent = [dist[0], dist[-1], compressed_rad[0], compressed_rad[-1]], cmap = "inferno")
-plt.xlabel("Propagation Distance (m)")
-plt.ylabel("Radius (m)")
-plt.colorbar(label = r"Seed Intensity (GW/$cm^2$)") 
-cs = plt.contour(dist, compressed_rad, intensities,
-                 levels=6, colors='white', linewidths=0.6)
-plt.title('Intensity at Seed Peak vs. Propagation Distance')
-plt.plot(dist, numeric_waist, label="Numerical Radius", color="red")
-plt.axvline((time_to_focus)*c_light/n, linestyle="--", color="white", label = "Analytical Waist Location (Pure Focusing)")
-plt.ylim(top = 1e-2)
-plt.legend()
+extent = [dist[0], dist[-1], compressed_rad[0], compressed_rad[-1]]
+
+# ---------------- plot ----------------
+nrow = len(RAD_MIN)
+fig, axes = plt.subplots(nrow, 1, sharex=True, figsize=(7.5, 4.5*nrow), squeeze=False)
+axes = axes[:, 0]
+
+for row, (ax, rmin, rmax) in enumerate(zip(axes, RAD_MIN, RAD_MAX)):
+    im = ax.imshow(intensities, aspect="auto", origin="lower", extent=extent, cmap=CMAP)
+    fig.colorbar(im, ax=ax, label=r"Seed Intensity (GW/cm$^2$)")
+
+    if SHOW_CONTOUR:
+        ax.contour(dist, compressed_rad, intensities,
+                   levels=N_CONTOURS, colors="white", linewidths=0.6)
+
+    if SHOW_NUMERIC:
+        ax.plot(dist, numeric_waist, color=NUM_COLOR, label="Numerical Radius")
+
+    if SHOW_ANALYTIC:
+        ax.axvline(z_focus, linestyle="--", color=ANA_COLOR,
+                   label="Analytical Waist Location (Pure Focusing)")
+
+    if USE_YLIM:
+        ax.set_ylim(rmin, rmax)
+
+    ax.set_ylabel("Radius (m)")
+
+    if row == 0:                               # title + legend on the top panel only
+        ax.set_title(f"Intensity at ζ = {compressed_zeta[zi]:.3g} m vs. Propagation Distance")
+        if SHOW_LEGEND and (SHOW_NUMERIC or SHOW_ANALYTIC):
+            ax.legend(fontsize=8, loc="upper right")
+
+axes[-1].set_xlabel("Propagation Distance (m)")
+
+fig.tight_layout()
 plt.show()
 
 #snapshot plotting
