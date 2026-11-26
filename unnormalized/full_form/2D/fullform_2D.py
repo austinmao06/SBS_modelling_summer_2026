@@ -479,25 +479,32 @@ plt.show()
 """
 Plots Intensity at each radius of select zeta against propagation distance
 """
+import numpy as np
+import matplotlib.pyplot as plt
 
 # ---------------- toggles ----------------
-SHOW_NUMERIC  = True    # numerical waist (red line)
-SHOW_ANALYTIC = True    # analytical waist location (vertical dashed line)
-SHOW_CONTOUR  = True    # white contour lines on the heatmap
-SHOW_LEGEND   = True
-USE_YLIM      = True    # False -> every panel shows the full radius range
+SHOW_NUMERIC     = True    # numerical waist (red line)
+SHOW_ANALYTIC    = True    # analytical waist location (vertical dashed line)
+SHOW_CONTOUR     = True    # white intensity contour lines
+SHOW_PHASEFRONTS = True    # cyan phase fronts (scaled carrier)
+SHOW_LEGEND      = True
+USE_YLIM         = True    # False -> every panel shows the full radius range
 
 # ---------------- settings ----------------
-ZETA       = 0                  # zeta slice (m) at which the intensity is taken
-RAD_MIN    = [0.0]              # radius axis lower limit (m); one stacked panel per entry
-RAD_MAX    = [0.4e-2]             # radius axis upper limit (m); must match RAD_MIN in length
-CMAP       = "inferno"
-N_CONTOURS = 6
-NUM_COLOR  = "red"
-ANA_COLOR  = "white"
+ZETA        = 0                  # zeta slice (m) at which the field is taken
+RAD_MIN     = [0.0]              # radius axis lower limit (m); one stacked panel per entry
+RAD_MAX     = [1e-2]             # radius axis upper limit (m); must match RAD_MIN in length
+CMAP        = "inferno"
+N_CONTOURS  = 6                  # intensity contours
+NUM_COLOR   = "red"
+ANA_COLOR   = "white"
+N_FRONTS    = 20                 # fronts across the plotted distance (sets the scaled carrier K_vis)
+FRONT_MIN_I = 1e-2               # draw fronts only where intensity > this fraction of the peak at that distance
+FRONT_COLOR = "cyan"
+FRONT_LW    = 0.7
 
 # ---------------- unit conversions ----------------
-field_norm = (I0/2*1e-10) / 1000.0                   # |b|^2 -> GW/cm^2
+field_norm = (I0/2*1e-10) / 1000.0                   # |b|^2 -> GW/cm^2 (same as before)
 
 # ---------------- setup ----------------
 assert len(RAD_MIN) == len(RAD_MAX), "RAD_MIN and RAD_MAX must have the same length"
@@ -505,7 +512,7 @@ assert len(RAD_MIN) == len(RAD_MAX), "RAD_MIN and RAD_MAX must have the same len
 zi   = np.argmin(np.abs(compressed_zeta - ZETA))
 dist = compressed_tau * c_light / n                  # propagation distance (m)
 
-# uses globals: b (shape (n_saves, Nzeta, Nrad)), compressed_*, I0, c_light, n, time_to_focus
+# uses globals: b (complex, shape (n_saves, Nzeta, Nrad)), compressed_*, I0, c_light, n, time_to_focus
 intensities = np.array([np.abs(b[ti, zi, :])**2 for ti in range(len(compressed_tau))]).T * field_norm
 # shape (Nrad, n_saves)
 
@@ -520,6 +527,15 @@ def numeric_waist_fn(b, zi):
 
 numeric_waist = numeric_waist_fn(b, zi)
 z_focus       = time_to_focus * c_light / n          # analytical waist location (m)
+
+# ---- phase fronts ----
+if SHOW_PHASEFRONTS:
+    K_vis = 2*np.pi*N_FRONTS/(dist[-1] - dist[0])                      # scaled carrier (rad/m)
+    b_zr  = b[:, zi, :].T                                              # (Nrad, Ntau), same layout as intensities
+    # total field ~ conj(b) e^{i k z} (b solves the conjugate paraxial equation), so psi = K_vis*z - arg(b)
+    e_psi = np.exp(1j*K_vis*dist)[None, :] * np.conj(b_zr) / np.maximum(np.abs(b_zr), 1e-300)
+    lit   = intensities >= FRONT_MIN_I*intensities.max(axis=0, keepdims=True)
+    crest = np.where(lit & (e_psi.real > 0), e_psi.imag, np.nan)       # sin(psi) = 0 with cos(psi) > 0 -> psi = 2*pi*m
 
 extent = [dist[0], dist[-1], compressed_rad[0], compressed_rad[-1]]
 
@@ -543,6 +559,12 @@ for row, (ax, rmin, rmax) in enumerate(zip(axes, RAD_MIN, RAD_MAX)):
         ax.axvline(z_focus, linestyle="--", color=ANA_COLOR,
                    label="Analytical Waist Location (Pure Focusing)")
 
+    if SHOW_PHASEFRONTS:
+        ax.contour(dist, compressed_rad, crest, levels=[0],
+                   colors=FRONT_COLOR, linewidths=FRONT_LW, linestyles="--")
+        ax.plot([], [], color=FRONT_COLOR, linestyle="--", linewidth=FRONT_LW,
+                label=f"Phase Fronts (carrier scaled to {N_FRONTS} fronts)")
+
     if USE_YLIM:
         ax.set_ylim(rmin, rmax)
 
@@ -550,7 +572,7 @@ for row, (ax, rmin, rmax) in enumerate(zip(axes, RAD_MIN, RAD_MAX)):
 
     if row == 0:                               # title + legend on the top panel only
         ax.set_title(f"Intensity at ζ = {compressed_zeta[zi]:.3g} m vs. Propagation Distance")
-        if SHOW_LEGEND and (SHOW_NUMERIC or SHOW_ANALYTIC):
+        if SHOW_LEGEND and (SHOW_NUMERIC or SHOW_ANALYTIC or SHOW_PHASEFRONTS):
             ax.legend(fontsize=8, loc="upper right")
 
 axes[-1].set_xlabel("Propagation Distance (m)")
